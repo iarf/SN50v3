@@ -216,7 +216,8 @@ void uart_log_init(uint32_t baudrate)
     uart_config_t uart_config;
 
     // set iomux
-    gpio_set_iomux(GPIOD, GPIO_PIN_12, 2); // LPUART_RX:GP60
+	// XXX: gpio_set_iomux(GPIOD, GPIO_PIN_12, 2); // LPUART_RX:GP60
+	gpio_set_iomux(GPIOB, GPIO_PIN_0, 1); // LPUART_RX:GP60
     gpio_set_iomux(GPIOB, GPIO_PIN_1, 1);  // UART0_TX:GP17
 
     // lpuart init

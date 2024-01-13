@@ -149,6 +149,8 @@ static int at_fcd_func(int opt, int argc, char *argv[]);
 static int at_class_func(int opt, int argc, char *argv[]);
 static int at_join_func(int opt, int argc, char *argv[]);
 static int at_njs_func(int opt, int argc, char *argv[]);
+static int at_sendb_func(int opt, int argc, char *argv[]);
+static int at_send_func(int opt, int argc, char *argv[]);
 static int at_recv_func(int opt, int argc, char *argv[]);
 static int at_recvb_func(int opt, int argc, char *argv[]);
 static int at_ver_func(int opt, int argc, char *argv[]);
@@ -216,6 +218,8 @@ static at_cmd_t g_at_table[] = {
 		{AT_CLASS, at_class_func},
 		{AT_JOIN, at_join_func},
 		{AT_NJS, at_njs_func},
+	{AT_SENDB, at_sendb_func},
+	{AT_SEND, at_send_func},
 		{AT_RECVB,at_recvb_func},
 		{AT_RECV,at_recv_func},		
 		{AT_VER, at_ver_func},
@@ -1825,6 +1829,122 @@ static int at_recvb_func(int opt, int argc, char *argv[])
     }
 
     return ret;		
+}
+
+static uint8_t sendbBuffer[256];
+
+static int
+at_sendb_func(int opt, int argc, char *argv[])
+{
+    lora_AppData_t msg = { NULL, 0, 0 };
+	int ret = LWAN_PARAM_ERROR;
+    char *n;
+    unsigned int port;
+    int length;
+
+
+	switch (opt)
+	{
+	case SET_CMD:
+        if (argc < 1) {
+            break;
+        }
+
+        /*
+         * port 0 is special - use default application port
+         * port above 223 is disallowed
+         */
+        port = strtoul((const char *)argv[0], &n, 0);
+        if (*n++ != ':' || port > 223)  {
+            break;
+        }
+
+        length = hex2bin(n, sendbBuffer, sizeof(sendbBuffer));
+
+        if (length < 0) {
+            break;
+        }
+
+        if (port == 0) {
+            port = lora_config_application_port_get();
+        }
+
+        msg.Port = port;
+        msg.Buff = sendbBuffer;
+        msg.BuffSize = length;
+
+        if (LORA_SUCCESS != LORA_send(&msg, lora_config_reqack_get())) {
+            ret = LWAN_ERROR;
+        }
+
+		ret = LWAN_SUCCESS;
+		break;
+
+
+	case DESC_CMD:
+		ret = LWAN_SUCCESS;
+		snprintf((char *)atcmd, ATCMD_SIZE,
+          "Send hex data along with the application port\r\n");
+		break;
+
+	default:
+		break;
+	}
+
+	return ret;
+}
+
+
+static int
+at_send_func(int opt, int argc, char *argv[])
+{
+    lora_AppData_t msg = { NULL, 0, 0 };
+	int ret = LWAN_PARAM_ERROR;
+    char *n;
+    unsigned int port;
+
+	switch (opt)
+	{
+	case SET_CMD:
+        if (argc < 1) {
+            break;
+        }
+
+        /*
+         * port 0 is special - use default application port
+         * port above 223 is disallowed
+         */
+        port = strtoul((const char *)argv[0], &n, 0);
+        if (*n++ != ':' || port > 223)  {
+            break;
+        }
+
+		if (port == 0) {
+            port = lora_config_application_port_get();
+        }
+
+        msg.Port = port;
+        msg.Buff = (uint8_t *) n;
+        msg.BuffSize = strlen(n);
+
+        if (LORA_SUCCESS != LORA_send(&msg, lora_config_reqack_get())) {
+            ret = LWAN_ERROR;
+        }
+
+		ret = LWAN_SUCCESS;
+		break;
+
+	case DESC_CMD:
+		ret = LWAN_SUCCESS;
+		snprintf((char *)atcmd, ATCMD_SIZE,
+          "Send text along with the application port\r\n");
+		break;
+
+	default:
+		break;
+	}
+
+	return ret;
 }
 
 static int at_ver_func(int opt, int argc, char *argv[])
