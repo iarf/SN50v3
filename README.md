@@ -1,4 +1,4 @@
-Added AT+SEND and AT+SENDB commands. Both are <<port>>:<<payload>> ; a value of 0 for port uses the application port setting. +SEND accepts a string, +SENDB accepts a hex-encoded binary payload.
+Added AT+SEND and AT+SENDB commands. Both are port:payload ; a value of 0 for port uses the application port setting. +SEND accepts a string, +SENDB accepts a hex-encoded binary payload.
 
 Source Code for SN50v3-LB and SN50v3-NB.
 
