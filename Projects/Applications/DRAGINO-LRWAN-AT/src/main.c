@@ -1730,7 +1730,7 @@ static void StartUnconfirmedUplinkChangeToConfirmedUplinkTimeoutTimer(void)
 void LoraStartCheckBLE(void)
 {
   TimerInit( &CheckBLETimesTimer, OnCheckBLETimesEvent );
-  TimerSetValue( &CheckBLETimesTimer,  60000); 
+  TimerSetValue( &CheckBLETimesTimer, 600000UL); 
   TimerStart( &CheckBLETimesTimer);	
 }
 
@@ -1738,7 +1738,7 @@ void OnCheckBLETimesEvent(void)
 {
 	if(gpio_read(DX_BT24_STATUS_PORT,DX_BT24_LINK_PIN)==1)
 	{
-		TimerSetValue( &CheckBLETimesTimer,  60000); 
+		TimerSetValue( &CheckBLETimesTimer, 600000UL); 
 		TimerStart( &CheckBLETimesTimer);	
 	}
 	else

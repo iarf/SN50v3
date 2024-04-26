@@ -45,7 +45,7 @@ static TimerEvent_t ATcommandsTimer;
 static void OnTimerATcommandsEvent(void);
 static uint8_t at_PASSWORD_comp(char *argv);
 uint8_t dwelltime;
-uint8_t parse_flag=0;
+uint8_t parse_flag = 1; // XXX: default to password OK
 bool atrecve_flag=0;
 bool debug_flags=0;
 bool message_flags=0;
@@ -3486,138 +3486,138 @@ int linkwan_serial_output(uint8_t *buffer, int len)
 
 void linkwan_at_process(void)
 {
-	  uint8_t pwflag=0;
+    uint8_t pwflag=0;
     char *ptr = NULL;
-		int argc = 0;
-		int index = 0;
-		char *argv[ARGC_LIMIT];
-			int ret = LWAN_ERROR;
-			uint8_t *rxcmd = atcmd + 2;
-			int16_t rxcmd_index = atcmd_index - 2;
+    int argc = 0;
+    int index = 0;
+    char *argv[ARGC_LIMIT];
+    int ret = LWAN_ERROR;
+    uint8_t *rxcmd = atcmd + 2;
+    int16_t rxcmd_index = atcmd_index - 2;
 
-			if (atcmd_index <=2 && atcmd[atcmd_index] == '\0') {
-					
-					atcmd_index = 0;
-					memset(atcmd, 0xff, ATCMD_SIZE);
-					return;
-			}
-			
-			if (rxcmd_index <= 0 || rxcmd[rxcmd_index] != '\0') {
-					return;
-			}
+    if (atcmd_index <=2 && atcmd[atcmd_index] == '\0') {
+
+        atcmd_index = 0;
+        memset(atcmd, 0xff, ATCMD_SIZE);
+        return;
+    }
+
+    if (rxcmd_index <= 0 || rxcmd[rxcmd_index] != '\0') {
+        return;
+    }
 
     if(parse_flag==1)
     {
-			g_atcmd_processing = true;
-			
-			if(atcmd[0] != 'A' || atcmd[1] != 'T')
-					goto at_end;
-			
-			if((atcmd[0] == 'A')&&(atcmd[1] == 'T')&&(atcmd[2] == '?')&&(atcmd[3] == '\0'))  //AT?
-			{
-        for (uint8_t num = 0; num < AT_TABLE_SIZE; num++)
-        {							
-          if(g_at_table[num].fn(DESC_CMD, 0, 0)==LWAN_SUCCESS)
-          {
-				  	LOG_PRINTF(LL_DEBUG,"AT%s: ",g_at_table[num].cmd);
-            linkwan_serial_output(atcmd, strlen((const char *)atcmd));  
-          }
-					delay_ms(50);
-          atcmd_index = 0;
-          memset(atcmd, 0xff, ATCMD_SIZE);
-         }	
-				 snprintf((char *)atcmd, ATCMD_SIZE, "\r\n");
-				 ret=LWAN_SUCCESS;			
-			}		
-			else
-			{
-			for (index = 0; index < AT_TABLE_SIZE; index++) {
-					int cmd_len = strlen(g_at_table[index].cmd);
-				if (!strncmp((const char *)rxcmd, g_at_table[index].cmd, cmd_len)) {
-					ptr = (char *)rxcmd + cmd_len;
-					break;
-				}
-			}
-		if (index >= AT_TABLE_SIZE || !g_at_table[index].fn)
-					goto at_end;
-	
-			if (ptr[0] == '\0') {
-				ret = g_at_table[index].fn(EXECUTE_CMD, argc, argv);
-			}  else if (ptr[0] == ' ') {
-						argv[argc++] = ptr;
-				ret = g_at_table[index].fn(EXECUTE_CMD, argc, argv);
-			} 
-			else if( (ptr[0] == '?') && (ptr[1] == '\0')) {
-					ret = g_at_table[index].fn(DESC_CMD, argc, argv);				
-			}else if ((ptr[0] == '=') && (ptr[1] == '?') && (ptr[2] == '\0')) {
-						ret = g_at_table[index].fn(QUERY_CMD, argc, argv);
-			} else if (ptr[0] == '=') {
-				ptr += 1;
-						
-						char *str = strtok((char *)ptr, ",");
-						while(str) {
-								argv[argc++] = str;
-								str = strtok((char *)NULL, ",");
-						}
-				ret = g_at_table[index].fn(SET_CMD, argc, argv);				
-			
-			if(ret==LWAN_SUCCESS && write_key_in_flash_status==1)
-			{
-				write_key_in_flash_status=0;				
-				Flash_store_key();
-			}
-			
-			if(ret==LWAN_SUCCESS && write_config_in_flash_status==1)
-			{
-				write_config_in_flash_status=0;				
-				Flash_Store_Config();
-			}
-			
-			} else {
-				ret = LWAN_ERROR;
-			}
-		}
-	}
-	else
-	{
-		if((atcmd[0] == 'A')&&(atcmd[1] == 'T')&&(atcmd[2] == '+')&&(atcmd[3] == 'D')&&(atcmd[4] == 'E')
-							&&(atcmd[5] == 'B')&&(atcmd[6] == 'U')&&(atcmd[7] == 'G')&&(atcmd[8] == '\0'))  //AT+DEBUG
-		{
-				 ret = g_at_table[0].fn(EXECUTE_CMD, argc, argv);         					
-		}			
-		else if(at_PASSWORD_comp((char *) atcmd)==1)
-		{
-			pwflag=1;
-			ret = LWAN_SUCCESS;
-		}
-		else
-		{
-			pwflag=1;
-		}
-			
-		index = 0;
-	}			
-	at_end:
-   if(pwflag==0)
-   {	
-			if (LWAN_ERROR == ret)
-					snprintf((char *)atcmd, ATCMD_SIZE, "\r\n%s\r\n", AT_ERROR);
-			else if(LWAN_PARAM_ERROR == ret)
-					snprintf((char *)atcmd, ATCMD_SIZE, "\r\n%s\r\n", AT_PARAM_ERROR);
-			else if(LWAN_BUSY_ERROR == ret) 
-					snprintf((char *)atcmd, ATCMD_SIZE, "\r\n%s\r\n", AT_BUSY_ERROR);
-			else if(LWAN_NO_NET_JOINED == ret) 
-					snprintf((char *)atcmd, ATCMD_SIZE, "\r\n%s\r\n", AT_NO_NET_JOINED);
-			
+        g_atcmd_processing = true;
 
-			linkwan_serial_output(atcmd, strlen((const char *)atcmd));  	
-	 
-			if(ret==LWAN_SUCCESS)
-			{
-				LOG_PRINTF(LL_DEBUG,"\r\nOK\r\n");
-			}	
+        if(atcmd[0] != 'A' || atcmd[1] != 'T')
+            goto at_end;
+
+        if((atcmd[0] == 'A')&&(atcmd[1] == 'T')&&(atcmd[2] == '?')&&(atcmd[3] == '\0'))  //AT?
+        {
+            for (uint8_t num = 0; num < AT_TABLE_SIZE; num++)
+            {							
+                if(g_at_table[num].fn(DESC_CMD, 0, 0)==LWAN_SUCCESS)
+                {
+                    LOG_PRINTF(LL_DEBUG,"AT%s: ",g_at_table[num].cmd);
+                    linkwan_serial_output(atcmd, strlen((const char *)atcmd));  
+                }
+                delay_ms(50);
+                atcmd_index = 0;
+                memset(atcmd, 0xff, ATCMD_SIZE);
+            }	
+            snprintf((char *)atcmd, ATCMD_SIZE, "\r\n");
+            ret=LWAN_SUCCESS;			
+        }		
+        else
+        {
+            for (index = 0; index < AT_TABLE_SIZE; index++) {
+                int cmd_len = strlen(g_at_table[index].cmd);
+                if (!strncmp((const char *)rxcmd, g_at_table[index].cmd, cmd_len)) {
+                    ptr = (char *)rxcmd + cmd_len;
+                    break;
+                }
+            }
+            if (index >= AT_TABLE_SIZE || !g_at_table[index].fn)
+                goto at_end;
+
+            if (ptr[0] == '\0') {
+                ret = g_at_table[index].fn(EXECUTE_CMD, argc, argv);
+            }  else if (ptr[0] == ' ') {
+                argv[argc++] = ptr;
+                ret = g_at_table[index].fn(EXECUTE_CMD, argc, argv);
+            } 
+            else if( (ptr[0] == '?') && (ptr[1] == '\0')) {
+                ret = g_at_table[index].fn(DESC_CMD, argc, argv);				
+            }else if ((ptr[0] == '=') && (ptr[1] == '?') && (ptr[2] == '\0')) {
+                ret = g_at_table[index].fn(QUERY_CMD, argc, argv);
+            } else if (ptr[0] == '=') {
+                ptr += 1;
+
+                char *str = strtok((char *)ptr, ",");
+                while(str) {
+                    argv[argc++] = str;
+                    str = strtok((char *)NULL, ",");
+                }
+                ret = g_at_table[index].fn(SET_CMD, argc, argv);				
+
+                if(ret==LWAN_SUCCESS && write_key_in_flash_status==1)
+                {
+                    write_key_in_flash_status=0;				
+                    Flash_store_key();
+                }
+
+                if(ret==LWAN_SUCCESS && write_config_in_flash_status==1)
+                {
+                    write_config_in_flash_status=0;				
+                    Flash_Store_Config();
+                }
+
+            } else {
+                ret = LWAN_ERROR;
+            }
+        }
+    }
+    else
+    {
+        if((atcmd[0] == 'A')&&(atcmd[1] == 'T')&&(atcmd[2] == '+')&&(atcmd[3] == 'D')&&(atcmd[4] == 'E')
+                &&(atcmd[5] == 'B')&&(atcmd[6] == 'U')&&(atcmd[7] == 'G')&&(atcmd[8] == '\0'))  //AT+DEBUG
+        {
+            ret = g_at_table[0].fn(EXECUTE_CMD, argc, argv);         					
+        }			
+        else if(at_PASSWORD_comp((char *) atcmd)==1)
+        {
+            pwflag=1;
+            ret = LWAN_SUCCESS;
+        }
+        else
+        {
+            pwflag=1;
+        }
+
+        index = 0;
+    }			
+at_end:
+    if(pwflag==0)
+    {	
+        if (LWAN_ERROR == ret)
+            snprintf((char *)atcmd, ATCMD_SIZE, "\r\n%s\r\n", AT_ERROR);
+        else if(LWAN_PARAM_ERROR == ret)
+            snprintf((char *)atcmd, ATCMD_SIZE, "\r\n%s\r\n", AT_PARAM_ERROR);
+        else if(LWAN_BUSY_ERROR == ret) 
+            snprintf((char *)atcmd, ATCMD_SIZE, "\r\n%s\r\n", AT_BUSY_ERROR);
+        else if(LWAN_NO_NET_JOINED == ret) 
+            snprintf((char *)atcmd, ATCMD_SIZE, "\r\n%s\r\n", AT_NO_NET_JOINED);
+
+
+        linkwan_serial_output(atcmd, strlen((const char *)atcmd));  	
+
+        if(ret==LWAN_SUCCESS)
+        {
+            LOG_PRINTF(LL_DEBUG,"\r\nOK\r\n");
+        }	
     }   
-	 
+
     atcmd_index = 0;
     memset(atcmd, 0xff, ATCMD_SIZE);
     g_atcmd_processing = false;        
@@ -3626,36 +3626,36 @@ void linkwan_at_process(void)
 
 static uint8_t at_PASSWORD_comp(char *argv)
 {
-	uint8_t scan_len=0;	
-  uint8_t buf[10];
-					
-	scan_len=hex2bin((const char *)argv, buf, 8);   
+    uint8_t scan_len=0;	
+    uint8_t buf[10];
 
-	if(password_comp(password_get,buf,scan_len,password_len)==1)
-	{
-	  TimerInit( &ATcommandsTimer, OnTimerATcommandsEvent );
-    TimerSetValue(  &ATcommandsTimer, 300000);//timeout=5 min
-    TimerStart( &ATcommandsTimer );
-    parse_flag=1;
-    atcmd_index = 0;
-    memset(atcmd, 0xff, ATCMD_SIZE);
-	  LOG_PRINTF(LL_DEBUG,"Correct Password\r\n");
-		return 1;
-	}
-	else
-  {
-    parse_flag=0;
-    atcmd_index = 0;
-    memset(atcmd, 0xff, ATCMD_SIZE);
-		LOG_PRINTF(LL_DEBUG,"Incorrect Password\n\r");
-		return 0;
-  }
+    scan_len=hex2bin((const char *)argv, buf, 8);   
+
+    if(password_comp(password_get,buf,scan_len,password_len)==1)
+    {
+        TimerInit( &ATcommandsTimer, OnTimerATcommandsEvent );
+        TimerSetValue(  &ATcommandsTimer, 300000);//timeout=5 min
+        TimerStart( &ATcommandsTimer );
+        parse_flag=1;
+        atcmd_index = 0;
+        memset(atcmd, 0xff, ATCMD_SIZE);
+        LOG_PRINTF(LL_DEBUG,"Correct Password\r\n");
+        return 1;
+    }
+    else
+    {
+        parse_flag=0;
+        atcmd_index = 0;
+        memset(atcmd, 0xff, ATCMD_SIZE);
+        LOG_PRINTF(LL_DEBUG,"Incorrect Password\n\r");
+        return 0;
+    }
 }
 
 static void OnTimerATcommandsEvent(void)
 {
-  parse_flag=0;
-  TimerStop( &ATcommandsTimer );
+    parse_flag=0;
+    TimerStop( &ATcommandsTimer );
 }
 
 void linkwan_at_init(void)
@@ -3666,34 +3666,34 @@ void linkwan_at_init(void)
 
 uint8_t password_comp(uint8_t scan_word[],uint8_t set_word[],uint8_t scan_lens,uint8_t set_len)
 {
-	uint8_t leng=0;
-	for(uint8_t i=0;i<scan_lens;i++)
-	{
-		if(scan_word[i]==set_word[i])
-		{
-			leng++;
-		}
-	}
-	
-	if((leng==set_len)&&(scan_lens==set_len))
-	{
-		return 1;
-	}
-	else
-	{
-		return 0;		
-	}
+    uint8_t leng=0;
+    for(uint8_t i=0;i<scan_lens;i++)
+    {
+        if(scan_word[i]==set_word[i])
+        {
+            leng++;
+        }
+    }
+
+    if((leng==set_len)&&(scan_lens==set_len))
+    {
+        return 1;
+    }
+    else
+    {
+        return 0;		
+    }
 }
 
 void weightreset(void)
 {
-	POWER_IoInit();
-	WEIGHT_SCK_Init();
-	WEIGHT_DOUT_Init();
-	Get_Maopi();	
-  delay_ms(500);
-  Get_Maopi();
-	WEIGHT_SCK_DeInit();
-	WEIGHT_DOUT_DeInit();		
-	POWER_IoDeInit();
+    POWER_IoInit();
+    WEIGHT_SCK_Init();
+    WEIGHT_DOUT_Init();
+    Get_Maopi();	
+    delay_ms(500);
+    Get_Maopi();
+    WEIGHT_SCK_DeInit();
+    WEIGHT_DOUT_DeInit();		
+    POWER_IoDeInit();
 }
