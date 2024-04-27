@@ -3576,8 +3576,7 @@ void linkwan_at_process(void)
     }
     else
     {
-        if((atcmd[0] == 'A')&&(atcmd[1] == 'T')&&(atcmd[2] == '+')&&(atcmd[3] == 'D')&&(atcmd[4] == 'E')
-                &&(atcmd[5] == 'B')&&(atcmd[6] == 'U')&&(atcmd[7] == 'G')&&(atcmd[8] == '\0'))  //AT+DEBUG
+        if (!strncasecmp((const char *)atcmd, "AT+DEBUG", 9))
         {
             ret = g_at_table[0].fn(EXECUTE_CMD, argc, argv);         					
         }			
