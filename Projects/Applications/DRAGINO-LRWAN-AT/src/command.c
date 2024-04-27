@@ -3496,7 +3496,6 @@ void linkwan_at_process(void)
     int16_t rxcmd_index = atcmd_index - 2;
 
     if (atcmd_index <=2 && atcmd[atcmd_index] == '\0') {
-
         atcmd_index = 0;
         memset(atcmd, 0xff, ATCMD_SIZE);
         return;
@@ -3506,19 +3505,17 @@ void linkwan_at_process(void)
         return;
     }
 
-    if(parse_flag==1)
-    {
+    if (parse_flag==1) {
         g_atcmd_processing = true;
 
-        if(atcmd[0] != 'A' || atcmd[1] != 'T')
+        if (strncasecmp((const char *)atcmd, "AT", 2)) { 
             goto at_end;
+        }
 
-        if((atcmd[0] == 'A')&&(atcmd[1] == 'T')&&(atcmd[2] == '?')&&(atcmd[3] == '\0'))  //AT?
-        {
+        if (!strncasecmp((const char *)atcmd, "AT?", 4)) { // AT?
             for (uint8_t num = 0; num < AT_TABLE_SIZE; num++)
             {							
-                if(g_at_table[num].fn(DESC_CMD, 0, 0)==LWAN_SUCCESS)
-                {
+                if (g_at_table[num].fn(DESC_CMD, 0, 0) == LWAN_SUCCESS) {
                     LOG_PRINTF(LL_DEBUG,"AT%s: ",g_at_table[num].cmd);
                     linkwan_serial_output(atcmd, strlen((const char *)atcmd));  
                 }
@@ -3528,12 +3525,11 @@ void linkwan_at_process(void)
             }	
             snprintf((char *)atcmd, ATCMD_SIZE, "\r\n");
             ret=LWAN_SUCCESS;			
-        }		
-        else
-        {
+        } else {
             for (index = 0; index < AT_TABLE_SIZE; index++) {
                 int cmd_len = strlen(g_at_table[index].cmd);
-                if (!strncmp((const char *)rxcmd, g_at_table[index].cmd, cmd_len)) {
+                if (!strncasecmp((const char *) rxcmd,
+                  g_at_table[index].cmd, cmd_len)) {
                     ptr = (char *)rxcmd + cmd_len;
                     break;
                 }
