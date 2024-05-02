@@ -1535,7 +1535,14 @@ static void LORA_RxData( lora_AppData_t *AppData )
 	}
 	else
 	{
-		LOG_PRINTF(LL_DEBUG,"BuffSize:%d,Run AT+RECVB=? to see detail\r\n",AppData->BuffSize);
+		// Stream output directly to serial when DL received (NG-60)
+		LOG_PRINTF(LL_DEBUG,"\r\n");
+		LOG_PRINTF(LL_DEBUG, "%d:", AppData->Port);
+		for (uint8_t i = 0; i < AppData->BuffSize; i++)
+		{
+			LOG_PRINTF(LL_DEBUG,"%02x ", AppData->Buff[i]);
+		}
+		LOG_PRINTF(LL_DEBUG,"\r\n");
 	}
 	
 	if((response_level!=0)&&(response_level!=3))
