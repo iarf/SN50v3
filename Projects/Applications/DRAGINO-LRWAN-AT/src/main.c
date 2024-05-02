@@ -1536,7 +1536,6 @@ static void LORA_RxData( lora_AppData_t *AppData )
 	else
 	{
 		// Stream output directly to serial when DL received (NG-60)
-		LOG_PRINTF(LL_DEBUG,"\r\n");
 		LOG_PRINTF(LL_DEBUG, "%d:", AppData->Port);
 		for (uint8_t i = 0; i < AppData->BuffSize; i++)
 		{
