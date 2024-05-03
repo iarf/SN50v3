@@ -646,6 +646,7 @@ int main(void)
 
         if (power_down_command) {
             power_down_command = 0;
+            Radio.Sleep();
             prepare_sleep_state();
         }
 
@@ -2012,6 +2013,7 @@ void user_key_event(void)
 
             case 2://sleep
                 {
+                    Radio.Sleep();
                     prepare_sleep_state();
                     user_key_duration=0;
 
