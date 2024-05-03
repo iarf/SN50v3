@@ -1066,527 +1066,533 @@ static void Send_reply_downlink( void )
 
 static void LORA_RxData( lora_AppData_t *AppData )
 {
-    uint8_t downlink_config_store_in_flash=0;
-    is_there_data=1;
-    set_at_receive(AppData->Port, AppData->Buff, AppData->BuffSize);
+	uint8_t downlink_config_store_in_flash=0;
+  is_there_data=1;
+  set_at_receive(AppData->Port, AppData->Buff, AppData->BuffSize);
+	
+  TimerSetValue(&downlinkLedTimer, 200);
+  gpio_write(LED_RGB_PORT, LED_RED_PIN, 1);
+	gpio_write(LED_RGB_PORT, LED_BLUE_PIN, 1);
 
-    TimerSetValue(&downlinkLedTimer, 200);
-    gpio_write(LED_RGB_PORT, LED_RED_PIN, 1);
-    gpio_write(LED_RGB_PORT, LED_BLUE_PIN, 1);
+  TimerStart( &downlinkLedTimer );
+	
+  switch(AppData->Buff[0] & 0xff)
+  {
+		case 0x01:
+		{
+			if( AppData->BuffSize == 4 )
+			{
+			  ServerSetTDC=( AppData->Buff[1]<<16 | AppData->Buff[2]<<8 | AppData->Buff[3] );//S
+				if(ServerSetTDC<5)
+				{
+				  LOG_PRINTF(LL_DEBUG,"TDC setting needs to be high than 4s\n\r");
+				}
+				else
+				{
+				  TDC_flag=1;
+			    APP_TX_DUTYCYCLE=ServerSetTDC*1000;
+					rxpr_flags=1;								
+				}						
+			}
+			break;
+		}
+				
+    case 0x04:
+		{
+			if( AppData->BuffSize == 2 )
+			{
+				if(AppData->Buff[1]==0xFF)  //---->ATZ
+				{
+					atz_flags=1;		
+					rxpr_flags=1;								
+				}
+				else if(AppData->Buff[1]==0xFE)  //---->AT+FDR
+			  {	
+					uint8_t status[128]={0};
+					memset(status, 0x00, 128);
+          __disable_irq();
+					status[0]=0x12;
+					status[1]=product_id;
+					status[2]=current_fre_band;
+					status[3]=fire_version;					
+					flash_erase_page(FLASH_USER_START_ADDR_CONFIG);
+					delay_ms(5);					
+					if(flash_program_bytes(FLASH_USER_START_ADDR_CONFIG,status,128)==ERRNO_FLASH_SEC_ERROR)
+					{
+						LOG_PRINTF(LL_DEBUG,"write config error\r\n");
+					}
+					__enable_irq();
+					
+					atz_flags=1;			
+					rxpr_flags=1;								
+				}
+			}
+			break;
+		}	
+				
+    case 0x05:
+		{
+			is_time_to_reply_downlink=1;
+					
+			if( AppData->BuffSize == 4)
+			{
+				if(AppData->Buff[1]<2)
+				{
+					if(AppData->Buff[1]==0x01)
+					{
+						lora_config_reqack_set(LORAWAN_CONFIRMED_MSG);
+						confirmed_uplink_retransmission_nbtrials=AppData->Buff[2];
+		        confirmed_uplink_counter_retransmission_increment_switch=AppData->Buff[3];
+					}
+					else if(AppData->Buff[1]==0x00)
+					{
+						confirmed_uplink_retransmission_nbtrials=AppData->Buff[2];
+		        confirmed_uplink_counter_retransmission_increment_switch=AppData->Buff[3];
+						lora_config_reqack_set(LORAWAN_UNCONFIRMED_MSG);
+					}
+					downlink_config_store_in_flash=1;
+					rxpr_flags=1;			
+			  }
+			}
+			else if(AppData->BuffSize == 2)
+			{
+        if(AppData->Buff[1]==0x00)
+				{
+					lora_config_reqack_set(LORAWAN_UNCONFIRMED_MSG);
+				}
+				else
+				{
+					lora_config_reqack_set(LORAWAN_CONFIRMED_MSG);
+				}
+						
+				confirmed_uplink_counter_retransmission_increment_switch=0;
+				confirmed_uplink_retransmission_nbtrials=7;
+				downlink_config_store_in_flash=1;
+				rxpr_flags=1;	
+					
+				downlink_command_buffersize=AppData->BuffSize;
+				for(int i=0;i<AppData->BuffSize;i++)
+				{
+					downlink_command_buffer[i]=AppData->Buff[i];
+				}				
+			}
+			else
+		  {
+				is_time_to_reply_downlink=0;
+			}
+					
+			break;
+		}
+			
+   case 0x06:
+   {
+			if( AppData->BuffSize == 4 )
+			{
+			  if((AppData->Buff[1]==0x00)&&(AppData->Buff[2]==0x00)&&(AppData->Buff[3]<=0x03))   		  //---->AT+INTMOD1
+				{
+					inmode=AppData->Buff[3];
+					GPIO_EXTI8_IoInit(inmode);
+					downlink_config_store_in_flash=1;
+					rxpr_flags=1;		
+				}			
+			  else if((AppData->Buff[1]==0x00)&&(AppData->Buff[2]==0x01)&&(AppData->Buff[3]<=0x03))   		  //---->AT+INTMOD2
+				{
+					inmode2=AppData->Buff[3];
+					GPIO_EXTI4_IoInit(inmode);
+					downlink_config_store_in_flash=1;
+					rxpr_flags=1;		
+				}		
+			  if((AppData->Buff[1]==0x00)&&(AppData->Buff[2]==0x02)&&(AppData->Buff[3]<=0x03))   		  //---->AT+INTMOD3
+				{
+					inmode3=AppData->Buff[3];
+					GPIO_EXTI15_IoInit(inmode);
+					downlink_config_store_in_flash=1;
+					rxpr_flags=1;		
+				}						
+		  }
+			break;	
+	  }	
+		
+		case 0x07:
+		{	
+			if( AppData->BuffSize == 3 )
+			{	
+			  power_5v_time=(AppData->Buff[1]<<8) | AppData->Buff[2];  //---->AT+5VT
+				downlink_config_store_in_flash=1;
+			  rxpr_flags=1;							
+			}			
+			break;									
+		}
 
-    TimerStart( &downlinkLedTimer );
+    case 0x08:			
+		{
+			if(workmode==5)
+			{
+				if((AppData->BuffSize == 2 )&&(AppData->Buff[1]==0x01))   //---->AT+WEIGRE
+				{	
+				  weightreset();
+				  rxpr_flags=1;							
+				}
+				else if((AppData->BuffSize == 4 )&&(AppData->Buff[1]==0x02))  //---->AT+WEIGAP
+				{
+				  GapValue=(float)((AppData->Buff[2]<<8 | AppData->Buff[3])/10.0);
+					downlink_config_store_in_flash=1;					
+					rxpr_flags=1;							
+				}
+			}
+			break;			
+	  }		
+		
+		case 0x09:
+		{
+			if( AppData->BuffSize == 6 )             //---->AT+SETCNT
+			{	
+				if(AppData->Buff[1]==0x01)
+				{				 
+					count1=AppData->Buff[2]<<24 | AppData->Buff[3]<<16 | AppData->Buff[4]<<8 | AppData->Buff[5];
+					rxpr_flags=1;								
+				}
+				else if(AppData->Buff[1]==0x02)
+				{					 
+					count2=AppData->Buff[2]<<24 | AppData->Buff[3]<<16 | AppData->Buff[4]<<8 | AppData->Buff[5];
+				  rxpr_flags=1;							
+				}
+			}				
+			break;				
+		}
 
-    switch(AppData->Buff[0] & 0xff)
-    {
-        case 0x01:
-            {
-                if( AppData->BuffSize == 4 )
-                {
-                    ServerSetTDC=( AppData->Buff[1]<<16 | AppData->Buff[2]<<8 | AppData->Buff[3] );//S
-                    if(ServerSetTDC<5)
-                    {
-                        LOG_PRINTF(LL_DEBUG,"TDC setting needs to be high than 4s\n\r");
-                    }
-                    else
-                    {
-                        TDC_flag=1;
-                        APP_TX_DUTYCYCLE=ServerSetTDC*1000;
-                        rxpr_flags=1;								
-                    }						
-                }
-                break;
-            }
-
-        case 0x04:
-            {
-                if( AppData->BuffSize == 2 )
-                {
-                    if(AppData->Buff[1]==0xFF)  //---->ATZ
-                    {
-                        atz_flags=1;		
-                        rxpr_flags=1;								
-                    }
-                    else if(AppData->Buff[1]==0xFE)  //---->AT+FDR
-                    {	
-                        uint8_t status[128]={0};
-                        memset(status, 0x00, 128);
-                        __disable_irq();
-                        status[0]=0x12;
-                        status[1]=product_id;
-                        status[2]=current_fre_band;
-                        status[3]=fire_version;					
-                        flash_erase_page(FLASH_USER_START_ADDR_CONFIG);
-                        delay_ms(5);					
-                        if(flash_program_bytes(FLASH_USER_START_ADDR_CONFIG,status,128)==ERRNO_FLASH_SEC_ERROR)
-                        {
-                            LOG_PRINTF(LL_DEBUG,"write config error\r\n");
-                        }
-                        __enable_irq();
-
-                        atz_flags=1;			
-                        rxpr_flags=1;								
-                    }
-                }
-                break;
-            }	
-
-        case 0x05:
-            {
-                is_time_to_reply_downlink=1;
-
-                if( AppData->BuffSize == 4)
-                {
-                    if(AppData->Buff[1]<2)
-                    {
-                        if(AppData->Buff[1]==0x01)
-                        {
-                            lora_config_reqack_set(LORAWAN_CONFIRMED_MSG);
-                            confirmed_uplink_retransmission_nbtrials=AppData->Buff[2];
-                            confirmed_uplink_counter_retransmission_increment_switch=AppData->Buff[3];
-                        }
-                        else if(AppData->Buff[1]==0x00)
-                        {
-                            confirmed_uplink_retransmission_nbtrials=AppData->Buff[2];
-                            confirmed_uplink_counter_retransmission_increment_switch=AppData->Buff[3];
-                            lora_config_reqack_set(LORAWAN_UNCONFIRMED_MSG);
-                        }
-                        downlink_config_store_in_flash=1;
-                        rxpr_flags=1;			
-                    }
-                }
-                else if(AppData->BuffSize == 2)
-                {
-                    if(AppData->Buff[1]==0x00)
-                    {
-                        lora_config_reqack_set(LORAWAN_UNCONFIRMED_MSG);
-                    }
-                    else
-                    {
-                        lora_config_reqack_set(LORAWAN_CONFIRMED_MSG);
-                    }
-
-                    confirmed_uplink_counter_retransmission_increment_switch=0;
-                    confirmed_uplink_retransmission_nbtrials=7;
-                    downlink_config_store_in_flash=1;
-                    rxpr_flags=1;	
-
-                    downlink_command_buffersize=AppData->BuffSize;
-                    for(int i=0;i<AppData->BuffSize;i++)
-                    {
-                        downlink_command_buffer[i]=AppData->Buff[i];
-                    }				
-                }
-                else
-                {
-                    is_time_to_reply_downlink=0;
-                }
-
-                break;
-            }
-
-        case 0x06:
-            {
-                if( AppData->BuffSize == 4 )
-                {
-                    if((AppData->Buff[1]==0x00)&&(AppData->Buff[2]==0x00)&&(AppData->Buff[3]<=0x03))   		  //---->AT+INTMOD1
-                    {
-                        inmode=AppData->Buff[3];
-                        GPIO_EXTI8_IoInit(inmode);
-                        downlink_config_store_in_flash=1;
-                        rxpr_flags=1;		
-                    }			
-                    else if((AppData->Buff[1]==0x00)&&(AppData->Buff[2]==0x01)&&(AppData->Buff[3]<=0x03))   		  //---->AT+INTMOD2
-                    {
-                        inmode2=AppData->Buff[3];
-                        GPIO_EXTI4_IoInit(inmode);
-                        downlink_config_store_in_flash=1;
-                        rxpr_flags=1;		
-                    }		
-                    if((AppData->Buff[1]==0x00)&&(AppData->Buff[2]==0x02)&&(AppData->Buff[3]<=0x03))   		  //---->AT+INTMOD3
-                    {
-                        inmode3=AppData->Buff[3];
-                        GPIO_EXTI15_IoInit(inmode);
-                        downlink_config_store_in_flash=1;
-                        rxpr_flags=1;		
-                    }						
-                }
-                break;	
-            }	
-
-        case 0x07:
-            {	
-                if( AppData->BuffSize == 3 )
-                {	
-                    power_5v_time=(AppData->Buff[1]<<8) | AppData->Buff[2];  //---->AT+5VT
-                    downlink_config_store_in_flash=1;
-                    rxpr_flags=1;							
-                }			
-                break;									
-            }
-
-        case 0x08:			
-            {
-                if(workmode==5)
-                {
-                    if((AppData->BuffSize == 2 )&&(AppData->Buff[1]==0x01))   //---->AT+WEIGRE
-                    {	
-                        weightreset();
-                        rxpr_flags=1;							
-                    }
-                    else if((AppData->BuffSize == 4 )&&(AppData->Buff[1]==0x02))  //---->AT+WEIGAP
-                    {
-                        GapValue=(float)((AppData->Buff[2]<<8 | AppData->Buff[3])/10.0);
-                        downlink_config_store_in_flash=1;					
-                        rxpr_flags=1;							
-                    }
-                }
-                break;			
-            }		
-
-        case 0x09:
-            {
-                if( AppData->BuffSize == 6 )             //---->AT+SETCNT
-                {	
-                    if(AppData->Buff[1]==0x01)
-                    {				 
-                        count1=AppData->Buff[2]<<24 | AppData->Buff[3]<<16 | AppData->Buff[4]<<8 | AppData->Buff[5];
-                        rxpr_flags=1;								
-                    }
-                    else if(AppData->Buff[1]==0x02)
-                    {					 
-                        count2=AppData->Buff[2]<<24 | AppData->Buff[3]<<16 | AppData->Buff[4]<<8 | AppData->Buff[5];
-                        rxpr_flags=1;							
-                    }
-                }				
-                break;				
-            }
-
-        case 0x0A:
-            {
-                if( AppData->BuffSize == 2 )         
-                {	
-                    if((AppData->Buff[1]>=0x01)&&(AppData->Buff[1]<=0x09))    //---->AT+MOD
-                    {
-                        workmode=AppData->Buff[1];
-                        downlink_config_store_in_flash=1;
-                        atz_flags=1;						
-                        rxpr_flags=1;	
-                    }						 
-                }				
-                break;
-            }
-
-        case 0x20:			
-            {
-                if( AppData->BuffSize == 2 )
-                {		
-                    if((AppData->Buff[1]==0x00)||(AppData->Buff[1]==0x01))    
-                    {
-                        if(AppData->Buff[1]==0x01)       //---->AT+NJM=1
-                        {
-                            lora_config_otaa_set(LORA_ENABLE);
-                        }
-                        else                             //---->AT+NJM=0
-                        {
-                            lora_config_otaa_set(LORA_DISABLE);							
-                        }
-                        downlink_config_store_in_flash=1;
-                        atz_flags=1;	
-                        rxpr_flags=1;							
-                    }						 
-                }
-                break;				
-            }	
-
-        case 0x21:
-            {
-                if( (AppData->BuffSize == 2) && (AppData->Buff[1]<=5) )
-                {
-                    response_level=( AppData->Buff[1] );//0~5					//---->AT+RPL
-                    downlink_config_store_in_flash=1;	
-                    rxpr_flags=1;						
-                }
-                else if( (AppData->BuffSize == 3) && (AppData->Buff[1]==0x00) && (AppData->Buff[2]<=1))  //---->AT+DISMACANS
-                {
-                    mac_response_flag=AppData->Buff[2];
-                    downlink_config_store_in_flash=1;	
-                    rxpr_flags=1;					
-                }			
-                break;
-            }		
-
-        case 0x22:			
-            {
-                MibRequestConfirm_t mib;
-                if(( AppData->BuffSize == 2 )&&(AppData->Buff[1]==0x01))   //---->AT+ADR=1
-                {		
-                    mib.Type = MIB_ADR;
-                    mib.Param.AdrEnable =AppData->Buff[1];
-                    LoRaMacMibSetRequestConfirm( &mib );					
-                    downlink_config_store_in_flash=1;
-                    rxpr_flags=1;							
-                }
-                else if((AppData->BuffSize == 4 )&&(AppData->Buff[1]==0x00))   //---->AT+ADR=0
-                {
-                    uint8_t downlink_data_rate=AppData->Buff[2];
-                    mib.Type = MIB_ADR;					
-                    mib.Param.AdrEnable = AppData->Buff[1];
-                    LoRaMacMibSetRequestConfirm( &mib );	
-
-#if defined(REGION_US915)
-                    if(downlink_data_rate>3)
-                    {
-                        downlink_data_rate=3;   
-                    }
-#elif defined(REGION_AS923) || defined(REGION_AU915)
-                    if(dwelltime==1)
-                    {
-                        if(downlink_data_rate>5)
-                        {
-                            downlink_data_rate=5;
-                        }
-                        else if(downlink_data_rate<2)
-                        {
-                            downlink_data_rate=2;
-                        }
-                    }
-#else
-                    if(downlink_data_rate>5)
-                    {
-                        downlink_data_rate=5;
-                    }
-#endif	
-
-                    lora_config_tx_datarate_set(downlink_data_rate) ;
-
-                    if(AppData->Buff[3]!=0xff)                //---->AT+TXP
-                    {
-                        mib.Type = MIB_CHANNELS_TX_POWER;						
-                        mib.Param.ChannelsTxPower=AppData->Buff[3];
-                        LoRaMacMibSetRequestConfirm( &mib );							
-                    }				
-                    downlink_config_store_in_flash=1;	
-                    rxpr_flags=1;							 
-                }
-                break;				
-            }			
-
-        case 0x23:			
-            {
-                if(( AppData->BuffSize == 2 )&&(AppData->Buff[1]!=0x00))
-                {		
-                    lora_config_application_port_set(AppData->Buff[1]);    //---->AT+PORT
-                    downlink_config_store_in_flash=1;
-                    rxpr_flags=1;						
-                }
-                break;					
-            }		
-
-        case 0x24:
-            {
-                if( AppData->BuffSize == 2 )
-                {
-#if defined( REGION_US915 )	|| defined( REGION_AU915 )
-                    if(AppData->Buff[1]<9)
-                    {
-                        customize_set8channel_set(AppData->Buff[1]);
-                        downlink_config_store_in_flash=1;
-                        atz_flags=1;
-                        rxpr_flags=1;					
-                    }
-#elif defined( REGION_CN470 )
-                    if(AppData->Buff[1]<13)
-                    {
-                        customize_set8channel_set(AppData->Buff[1]);
-                        downlink_config_store_in_flash=1;
-                        atz_flags=1;
-                        rxpr_flags=1;					
-                    }
-#endif
-                }
-                break;
-            }
-
-        case 0x25:			
-            {
-#if defined( REGION_AS923 )	|| defined( REGION_AU915 )
-                if( AppData->BuffSize == 2 )
-                {				
-                    if((AppData->Buff[1]==0x00)||(AppData->Buff[1]==0x01))   //---->AT+DWELLT
-                    {
-                        dwelltime=AppData->Buff[1];
-                        downlink_config_store_in_flash=1;
-                        atz_flags=1;		
-                        rxpr_flags=1;						 
-                    }						
-                }
-#endif	
-                break;				
-            }
-
-        case 0x26:
-            {
-                if(( AppData->BuffSize == 2 )&&(AppData->Buff[1]==0x01))  
-                {
-                    uplink_message_data_status=1;		
-                    rxpr_flags=1;					
-                }			
-                else if( AppData->BuffSize == 3 )
-                {
-                    uint16_t value;			
-
-                    value=( AppData->Buff[1]<<8 | AppData->Buff[2] );//1~65535
-
-                    if(value>0)
-                    {
-                        REJOIN_TX_DUTYCYCLE=value;
-                        downlink_config_store_in_flash=1;
-                        rxpr_flags=1;		
-                    }					
-                }
-                break;
-            }
-
-        case 0x32:
-            {
-                if( AppData->BuffSize == 6 )
-                {
-                    uint16_t value;						
-                    value=AppData->Buff[1];
-                    if(value<2)
-                    {
-                        downlink_detect_switch=value;
-                    }
-
-                    value=AppData->Buff[2]<<8|AppData->Buff[3];
-                    if(value>0)
-                    {
-                        unconfirmed_uplink_change_to_confirmed_uplink_timeout=value;
-                    }
-
-                    value=AppData->Buff[4]<<8|AppData->Buff[5];
-                    if(value>0)
-                    {
-                        downlink_detect_timeout=value;
-                    }
-
-                    if(downlink_detect_switch==0)
-                    {
-                        TimerStop(&DownlinkDetectTimeoutTimer);
-                        TimerStop(&UnconfirmedUplinkChangeToConfirmedUplinkTimeoutTimer);
-                    }
-                    else
-                    {
-                        TimerSetValue(&DownlinkDetectTimeoutTimer,downlink_detect_timeout*60000);
-                        TimerStart(&DownlinkDetectTimeoutTimer);
-
-                        if(lora_config_reqack_get()==LORAWAN_UNCONFIRMED_MSG)
-                        {
-                            TimerSetValue(&UnconfirmedUplinkChangeToConfirmedUplinkTimeoutTimer,unconfirmed_uplink_change_to_confirmed_uplink_timeout*60000); 
-                            TimerStart(&UnconfirmedUplinkChangeToConfirmedUplinkTimeoutTimer);
-                        }	
-                    }
-
-                    downlink_config_store_in_flash=1;		
-                    rxpr_flags=1;						
-                }
-                break;
-            }
-
-        case 0x33:
-            {
-                if( AppData->BuffSize == 3 )
-                {
-                    LinkADR_NbTrans_retransmission_nbtrials=AppData->Buff[1];
-                    LinkADR_NbTrans_uplink_counter_retransmission_increment_switch=AppData->Buff[2];
-
-                    if(LinkADR_NbTrans_retransmission_nbtrials==0)
-                    {
-                        LinkADR_NbTrans_retransmission_nbtrials=1;
-                    }
-
-                    if(LinkADR_NbTrans_retransmission_nbtrials>15)
-                    {
-                        LinkADR_NbTrans_retransmission_nbtrials=15;
-                    }
-
-                    if(LinkADR_NbTrans_uplink_counter_retransmission_increment_switch>1)
-                    {
-                        LinkADR_NbTrans_uplink_counter_retransmission_increment_switch=1;
-                    }
-                    downlink_config_store_in_flash=1;
-                    rxpr_flags=1;						 
-                }
-                break;
-            }
-
-        default:
-            break;
-    }	
-
-    if(TDC_flag==1)
-    {
-        Flash_Store_Config();
-        TimerInit( &TxTimer, OnTxTimerEvent );
-        TimerSetValue( &TxTimer,  APP_TX_DUTYCYCLE); 
-        TimerStart( &TxTimer);
-        TimerStart( &IWDGRefreshTimer);				
-        TDC_flag=0;
-    }
-
-    if(downlink_config_store_in_flash==1)
-    {
-        downlink_config_store_in_flash=0;
-        Flash_Store_Config();
-    }
-
-    LOG_PRINTF(LL_DEBUG,"\r\n");	
-    LOG_PRINTF(LL_DEBUG,"Receive data\r\n");
-    if((AppData->BuffSize<=8)&&(rxpr_flags==1))
-    {			
-        LOG_PRINTF(LL_DEBUG,"%d:",AppData->Port);
-        for (int i = 0; i < AppData->BuffSize; i++)
-        {
-            LOG_PRINTF(LL_DEBUG,"%02x ", AppData->Buff[i]);
-        }
-        LOG_PRINTF(LL_DEBUG,"\r\n");
-    }
-    else
-    {
-        LOG_PRINTF(LL_DEBUG,"BuffSize:%d,Run AT+RECVB=? to see detail\r\n",AppData->BuffSize);
-    }
-
-    if((response_level!=0)&&(response_level!=3))
-    {
-        if(rxpr_flags==1)
-        {
-            downlink_send[0]=0x01;
-        }
-        else 
-        {
-            downlink_send[0]=0x00;
-        }
-
-        downlinklens=1;
-        for (uint8_t g = 0; g < AppData->BuffSize; g++)
-        {
-            if(downlinklens<51)
-            {
-                downlink_send[downlinklens++]=AppData->Buff[g];
-            }
-        }
-
-        is_time_to_reply_downlink=0;
-        if((AppData->BuffSize==2)&&(AppData->Buff[0]==0x26)&&(AppData->Buff[1]==0x01))
-        {
-            is_there_data=0;
-            MAC_COMMAND_ANS_status=0;
-        }
-        else
-        {
-            downlink_data_status=1;
-        }		
-    }	
+		case 0x0A:
+		{
+			if( AppData->BuffSize == 2 )         
+			{	
+				if((AppData->Buff[1]>=0x01)&&(AppData->Buff[1]<=0x09))    //---->AT+MOD
+				{
+					workmode=AppData->Buff[1];
+					downlink_config_store_in_flash=1;
+					atz_flags=1;						
+					rxpr_flags=1;	
+				}						 
+			}				
+			break;
+		}
+		
+		case 0x20:			
+		{
+			if( AppData->BuffSize == 2 )
+			{		
+				if((AppData->Buff[1]==0x00)||(AppData->Buff[1]==0x01))    
+				{
+					if(AppData->Buff[1]==0x01)       //---->AT+NJM=1
+					{
+						lora_config_otaa_set(LORA_ENABLE);
+					}
+					else                             //---->AT+NJM=0
+					{
+						lora_config_otaa_set(LORA_DISABLE);							
+					}
+					downlink_config_store_in_flash=1;
+					atz_flags=1;	
+					rxpr_flags=1;							
+				}						 
+			 }
+			 break;				
+		}	
+				
+		case 0x21:
+		{
+			if( (AppData->BuffSize == 2) && (AppData->Buff[1]<=5) )
+			{
+				response_level=( AppData->Buff[1] );//0~5					//---->AT+RPL
+				downlink_config_store_in_flash=1;	
+				rxpr_flags=1;						
+			}
+			else if( (AppData->BuffSize == 3) && (AppData->Buff[1]==0x00) && (AppData->Buff[2]<=1))  //---->AT+DISMACANS
+			{
+				mac_response_flag=AppData->Buff[2];
+				downlink_config_store_in_flash=1;	
+				rxpr_flags=1;					
+			}			
+			break;
+		}		
+				
+		case 0x22:			
+		{
+			MibRequestConfirm_t mib;
+			if(( AppData->BuffSize == 2 )&&(AppData->Buff[1]==0x01))   //---->AT+ADR=1
+			{		
+				mib.Type = MIB_ADR;
+				mib.Param.AdrEnable =AppData->Buff[1];
+				LoRaMacMibSetRequestConfirm( &mib );					
+				downlink_config_store_in_flash=1;
+				rxpr_flags=1;							
+			}
+			else if((AppData->BuffSize == 4 )&&(AppData->Buff[1]==0x00))   //---->AT+ADR=0
+			{
+				uint8_t downlink_data_rate=AppData->Buff[2];
+				mib.Type = MIB_ADR;					
+				mib.Param.AdrEnable = AppData->Buff[1];
+				LoRaMacMibSetRequestConfirm( &mib );	
+						
+				#if defined(REGION_US915)
+				if(downlink_data_rate>3)
+				{
+					downlink_data_rate=3;   
+				}
+				#elif defined(REGION_AS923) || defined(REGION_AU915)
+				if(dwelltime==1)
+				{
+					if(downlink_data_rate>5)
+					{
+						downlink_data_rate=5;
+					}
+					else if(downlink_data_rate<2)
+					{
+						downlink_data_rate=2;
+					}
+				 }
+				 #else
+				 if(downlink_data_rate>5)
+				 {
+					  downlink_data_rate=5;
+				 }
+				 #endif	
+						
+				 lora_config_tx_datarate_set(downlink_data_rate) ;
+						
+				 if(AppData->Buff[3]!=0xff)                //---->AT+TXP
+				 {
+					  mib.Type = MIB_CHANNELS_TX_POWER;						
+						mib.Param.ChannelsTxPower=AppData->Buff[3];
+						LoRaMacMibSetRequestConfirm( &mib );							
+				 }				
+				 downlink_config_store_in_flash=1;	
+				 rxpr_flags=1;							 
+			}
+			break;				
+		}			
+				
+		case 0x23:			
+		{
+			if(( AppData->BuffSize == 2 )&&(AppData->Buff[1]!=0x00))
+			{		
+				lora_config_application_port_set(AppData->Buff[1]);    //---->AT+PORT
+				downlink_config_store_in_flash=1;
+				rxpr_flags=1;						
+			}
+			break;					
+		}		
+		
+		case 0x24:
+		{
+			if( AppData->BuffSize == 2 )
+			{
+				#if defined( REGION_US915 )	|| defined( REGION_AU915 )
+				if(AppData->Buff[1]<9)
+				{
+				  customize_set8channel_set(AppData->Buff[1]);
+					downlink_config_store_in_flash=1;
+					atz_flags=1;
+					rxpr_flags=1;					
+				}
+				#elif defined( REGION_CN470 )
+				if(AppData->Buff[1]<13)
+				{
+					customize_set8channel_set(AppData->Buff[1]);
+					downlink_config_store_in_flash=1;
+					atz_flags=1;
+					rxpr_flags=1;					
+				}
+				#endif
+			 }
+			 break;
+	  }
+		
+		case 0x25:			
+		{
+		 #if defined( REGION_AS923 )	|| defined( REGION_AU915 )
+		 if( AppData->BuffSize == 2 )
+		 {				
+			 if((AppData->Buff[1]==0x00)||(AppData->Buff[1]==0x01))   //---->AT+DWELLT
+			 {
+				 dwelltime=AppData->Buff[1];
+				 downlink_config_store_in_flash=1;
+				 atz_flags=1;		
+				 rxpr_flags=1;						 
+			 }						
+		 }
+		 #endif	
+		 break;				
+		}
+				
+		case 0x26:
+		{
+			if(( AppData->BuffSize == 2 )&&(AppData->Buff[1]==0x01))  
+			{
+				uplink_message_data_status=1;		
+				rxpr_flags=1;					
+			}			
+			else if( AppData->BuffSize == 3 )
+			{
+				uint16_t value;			
+						
+				value=( AppData->Buff[1]<<8 | AppData->Buff[2] );//1~65535
+						
+				if(value>0)
+				{
+					REJOIN_TX_DUTYCYCLE=value;
+					downlink_config_store_in_flash=1;
+				  rxpr_flags=1;		
+				}					
+			}
+			break;
+		}
+				
+		case 0x32:
+		{
+			if( AppData->BuffSize == 6 )
+			{
+        uint16_t value;						
+				value=AppData->Buff[1];
+				if(value<2)
+				{
+					downlink_detect_switch=value;
+				}
+						
+        value=AppData->Buff[2]<<8|AppData->Buff[3];
+				if(value>0)
+				{
+					unconfirmed_uplink_change_to_confirmed_uplink_timeout=value;
+				}
+						
+        value=AppData->Buff[4]<<8|AppData->Buff[5];
+				if(value>0)
+				{
+					downlink_detect_timeout=value;
+				}
+						
+				if(downlink_detect_switch==0)
+				{
+					TimerStop(&DownlinkDetectTimeoutTimer);
+					TimerStop(&UnconfirmedUplinkChangeToConfirmedUplinkTimeoutTimer);
+				}
+				else
+				{
+					TimerSetValue(&DownlinkDetectTimeoutTimer,downlink_detect_timeout*60000);
+					TimerStart(&DownlinkDetectTimeoutTimer);
+							
+					if(lora_config_reqack_get()==LORAWAN_UNCONFIRMED_MSG)
+					{
+						TimerSetValue(&UnconfirmedUplinkChangeToConfirmedUplinkTimeoutTimer,unconfirmed_uplink_change_to_confirmed_uplink_timeout*60000); 
+						TimerStart(&UnconfirmedUplinkChangeToConfirmedUplinkTimeoutTimer);
+					}	
+				}
+						
+				downlink_config_store_in_flash=1;		
+				rxpr_flags=1;						
+			 }
+			 break;
+		 }
+				
+		 case 0x33:
+		 {
+			 if( AppData->BuffSize == 3 )
+			 {
+				 LinkADR_NbTrans_retransmission_nbtrials=AppData->Buff[1];
+				 LinkADR_NbTrans_uplink_counter_retransmission_increment_switch=AppData->Buff[2];
+						
+				 if(LinkADR_NbTrans_retransmission_nbtrials==0)
+				 {
+				 	 LinkADR_NbTrans_retransmission_nbtrials=1;
+				 }
+						
+				 if(LinkADR_NbTrans_retransmission_nbtrials>15)
+				 {
+				   LinkADR_NbTrans_retransmission_nbtrials=15;
+				 }
+						
+				 if(LinkADR_NbTrans_uplink_counter_retransmission_increment_switch>1)
+			 	 {
+					 LinkADR_NbTrans_uplink_counter_retransmission_increment_switch=1;
+				 }
+				 downlink_config_store_in_flash=1;
+				 rxpr_flags=1;						 
+			 }
+			 break;
+		}
+		
+		default:
+		break;
+	}	
+	 
+	if(TDC_flag==1)
+	{
+		Flash_Store_Config();
+		TimerInit( &TxTimer, OnTxTimerEvent );
+    TimerSetValue( &TxTimer,  APP_TX_DUTYCYCLE); 
+    TimerStart( &TxTimer);
+		TimerStart( &IWDGRefreshTimer);				
+		TDC_flag=0;
+	}
+	
+	if(downlink_config_store_in_flash==1)
+	{
+		downlink_config_store_in_flash=0;
+		Flash_Store_Config();
+	}
+	
+	LOG_PRINTF(LL_DEBUG,"\r\n");	
+	LOG_PRINTF(LL_DEBUG,"Receive data\r\n");
+	if((AppData->BuffSize<=8)&&(rxpr_flags==1))
+	{			
+		LOG_PRINTF(LL_DEBUG,"%d:",AppData->Port);
+		for (int i = 0; i < AppData->BuffSize; i++)
+		{
+			LOG_PRINTF(LL_DEBUG,"%02x ", AppData->Buff[i]);
+		}
+		LOG_PRINTF(LL_DEBUG,"\r\n");
+	}
+	else
+	{
+		// Stream output directly to serial when DL received (NG-60)
+		LOG_PRINTF(LL_DEBUG, "%d:", AppData->Port);
+		for (uint8_t i = 0; i < AppData->BuffSize; i++)
+		{
+			LOG_PRINTF(LL_DEBUG,"%02x ", AppData->Buff[i]);
+		}
+		LOG_PRINTF(LL_DEBUG,"\r\n");
+	}
+	
+	if((response_level!=0)&&(response_level!=3))
+  {
+		if(rxpr_flags==1)
+		{
+			downlink_send[0]=0x01;
+		}
+		else 
+		{
+			downlink_send[0]=0x00;
+		}
+		
+		downlinklens=1;
+		for (uint8_t g = 0; g < AppData->BuffSize; g++)
+		{
+			if(downlinklens<51)
+			{
+				downlink_send[downlinklens++]=AppData->Buff[g];
+			}
+		}
+		
+		is_time_to_reply_downlink=0;
+		if((AppData->BuffSize==2)&&(AppData->Buff[0]==0x26)&&(AppData->Buff[1]==0x01))
+		{
+			is_there_data=0;
+			MAC_COMMAND_ANS_status=0;
+		}
+		else
+		{
+			downlink_data_status=1;
+		}		
+	}
 }
 
 static void OnTxTimerEvent( void )
