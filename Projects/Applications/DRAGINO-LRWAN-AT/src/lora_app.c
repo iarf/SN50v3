@@ -465,11 +465,12 @@ void LORA_Init (LoRaMainCallback_t *callbacks, LoRaParam_t* LoRaParam )
 	
 	LOG_PRINTF(LL_DEBUG,"Image Version: "AT_VERSION_STRING"\n\r");
 	LOG_PRINTF(LL_DEBUG,"LoRaWan Stack: "AT_LoRaWan_VERSION_STRING"\n\r");	
+	LOG_PRINTF(LL_DEBUG,"LoraBuddy 03 May 2024 ""Birthday Build""\n\r");
 	LOG_PRINTF(LL_DEBUG,"Frequency Band: ");
-	
 	region_printf();
+
 	key_printf();
-	LOG_PRINTF(LL_DEBUG,"Enter Password to Active AT Commands\n\r");
+	LOG_PRINTF(LL_DEBUG,"NO PASSWORD: Enter Password to Active AT Commands\n\r");
   LOG_PRINTF(LL_DEBUG,"\n\rUse AT+DEBUG to see more debug info\r\n\r\n");
 	
 	lora_config.otaa = LORA_ENABLE;
