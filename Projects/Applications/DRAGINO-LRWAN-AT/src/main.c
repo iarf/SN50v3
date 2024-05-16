@@ -1075,7 +1075,9 @@ static void LORA_RxData( lora_AppData_t *AppData )
 	gpio_write(LED_RGB_PORT, LED_BLUE_PIN, 1);
 
   TimerStart( &downlinkLedTimer );
-	
+
+  if (AppData->Port == 0x01) {
+
   switch(AppData->Buff[0] & 0xff)
   {
 		case 0x01:
@@ -1522,7 +1524,8 @@ static void LORA_RxData( lora_AppData_t *AppData )
 		
 		default:
 		break;
-	}	
+	}
+  }	
 	 
 	if(TDC_flag==1)
 	{
