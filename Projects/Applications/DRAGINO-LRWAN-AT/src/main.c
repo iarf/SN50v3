@@ -155,6 +155,7 @@ TimerEvent_t ReJoinTimer;
 TimerEvent_t DownlinkDetectTimeoutTimer;
 TimerEvent_t UnconfirmedUplinkChangeToConfirmedUplinkTimeoutTimer;
 TimerEvent_t PowerDownTimer;
+TimerEvent_t PowerOnWinkTimer;
 
 // XXX: determine power-down timer period
 static const uint32_t PowerDownTimerPeriod = 3600000UL;
@@ -168,6 +169,7 @@ void OnPressButtonTimesLedEvent(void);
 void OnPressButtonTimeoutEvent(void);
 void OndownlinkLedEvent(void);
 void OnNetworkJoinedLedEvent(void);
+static void OnPowerOnWinkTimerEvent(void);
 static void OnIWDGRefreshTimeoutEvent(void);
 static void OnReJoinTimerEvent( void );
 static void OnDownlinkDetectTimeoutEvent( void );
@@ -388,6 +390,11 @@ int main(void)
             TimerInit( &NetworkJoinedLedTimer, OnNetworkJoinedLedEvent );
             TimerSetValue( &NetworkJoinedLedTimer, 5000);
             TimerStart( &NetworkJoinedLedTimer );				
+
+            // start the 'power on wink' timer
+            TimerInit(&PowerOnWinkTimer, OnPowerOnWinkTimerEvent);
+            TimerSetValue(&PowerOnWinkTimer, 7500);
+            TimerStart(&PowerOnWinkTimer);				
         }
 
         if(is_time_to_rejoin==1)
@@ -645,6 +652,8 @@ int main(void)
         user_key_event();		
 
         if (power_down_command) {
+            // stop the 'power on wink' timer
+            TimerStop(&PowerOnWinkTimer);				
             power_down_command = 0;
             Radio.Sleep();
             prepare_sleep_state();
@@ -1687,6 +1696,15 @@ void OnNetworkJoinedLedEvent(void)
     gpio_init(LED_RGB_PORT, LED_GREEN_PIN, GPIO_MODE_OUTPUT_PP_LOW);	
     TimerStop(&NetworkJoinedLedTimer);
     joined_ledend=0;	
+}
+
+static void OnPowerOnWinkTimerEvent(void)
+{
+    // do the wink
+    gpio_write(LED_RGB_PORT, LED_BLUE_PIN, 1);
+    delay_ms(50);
+    gpio_write(LED_RGB_PORT, LED_BLUE_PIN, 0);
+    TimerStart(&PowerOnWinkTimer);				
 }
 
 void OnPressButtonTimesLedEvent(void)
