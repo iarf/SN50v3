@@ -48,8 +48,12 @@ void BLE_power_Init(void)
 	
 	 uint8_t buf[8];
 	 lora_config_deveui_get(buf);
+#if 0
 	 LOG_PRINTF(LL_DEBUG,"AT+NAME%02X%02X%02X%02X%02X%02X%02X%02X\r\n", 
-							buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6], buf[7]);
+	   buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6], buf[7]);
+#else
+	 LOG_PRINTF(LL_DEBUG,"AT+NAMEian-squawk\r\n");
+#endif
 
 	 delay_ms(50);
 		

@@ -392,6 +392,8 @@ static void McpsIndication( McpsIndication_t *mcpsIndication )
           AppData.Port = mcpsIndication->Port;
           AppData.BuffSize = mcpsIndication->BufferSize;
           AppData.Buff = mcpsIndication->Buffer;
+	  AppData.Rssi = mcpsIndication->Rssi;
+	  AppData.Snr = mcpsIndication->Snr;
           lora_config.Rssi = mcpsIndication->Rssi;
           lora_config.Snr  = mcpsIndication->Snr;
           LoRaMainCallbacks->LORA_RxData( &AppData );
@@ -465,7 +467,7 @@ void LORA_Init (LoRaMainCallback_t *callbacks, LoRaParam_t* LoRaParam )
 	
 	LOG_PRINTF(LL_DEBUG,"Image Version: "AT_VERSION_STRING"\n\r");
 	LOG_PRINTF(LL_DEBUG,"LoRaWan Stack: "AT_LoRaWan_VERSION_STRING"\n\r");	
-	LOG_PRINTF(LL_DEBUG,"LoraBuddy 03 May 2024 ""Birthday Build""\n\r");
+	LOG_PRINTF(LL_DEBUG,"Buddy 24 May 2024 \n\r");
 	LOG_PRINTF(LL_DEBUG,"Frequency Band: ");
 	region_printf();
 

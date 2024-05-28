@@ -57,7 +57,9 @@ typedef struct
   uint8_t BuffSize;
   /*Port on which the LoRa App is data is sent/ received*/
   uint8_t Port;
-  
+
+  int16_t Rssi;
+  uint8_t Snr;
 } lora_AppData_t;
 
 typedef enum 

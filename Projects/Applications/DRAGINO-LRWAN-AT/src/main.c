@@ -1553,6 +1553,10 @@ static void LORA_RxData( lora_AppData_t *AppData )
 	}
 	
 	LOG_PRINTF(LL_DEBUG,"\r\n");	
+#if 1
+	LOG_PRINTF(LL_DEBUG,"Receive signal: %d %u\r\n",
+	  AppData->Rssi, AppData->Snr);
+#endif
 	LOG_PRINTF(LL_DEBUG,"Receive data\r\n");
 	if((AppData->BuffSize<=8)&&(rxpr_flags==1))
 	{			
