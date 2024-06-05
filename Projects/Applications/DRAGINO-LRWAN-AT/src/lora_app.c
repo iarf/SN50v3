@@ -467,7 +467,7 @@ void LORA_Init (LoRaMainCallback_t *callbacks, LoRaParam_t* LoRaParam )
 	
 	LOG_PRINTF(LL_DEBUG,"Image Version: "AT_VERSION_STRING"\n\r");
 	LOG_PRINTF(LL_DEBUG,"LoRaWan Stack: "AT_LoRaWan_VERSION_STRING"\n\r");	
-	LOG_PRINTF(LL_DEBUG,"Buddy 24 May 2024 \n\r");
+	LOG_PRINTF(LL_DEBUG,"Buddy 4 June 2024 \n\r");
 	LOG_PRINTF(LL_DEBUG,"Frequency Band: ");
 	region_printf();
 

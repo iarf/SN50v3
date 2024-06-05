@@ -652,8 +652,6 @@ int main(void)
         user_key_event();		
 
         if (power_down_command) {
-            // stop the 'power on wink' timer
-            TimerStop(&PowerOnWinkTimer);				
             power_down_command = 0;
             Radio.Sleep();
             prepare_sleep_state();
@@ -1853,6 +1851,7 @@ prepare_sleep_state()
     TimerStop(&ReJoinTimer);
     TimerStop(&DownlinkDetectTimeoutTimer);
     TimerStop(&UnconfirmedUplinkChangeToConfirmedUplinkTimeoutTimer);
+    TimerStop(&PowerOnWinkTimer);				
 
     delay_ms(500);
     TimerInit( &PressButtonTimesLedTimer, OnPressButtonTimesLedEvent );
