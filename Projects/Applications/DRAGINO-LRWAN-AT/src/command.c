@@ -1900,8 +1900,39 @@ at_sendb_func(int opt, int argc, char *argv[])
 
 	return ret;
 }
+// queue of messages to send
+static lora_AppData_t sendQueue[256];
+static TimerEvent_t BsendTimer;
+static int sendCursor = 0;
+static int queueLength = 0;
+static bool bSending = false;
 
-static uint8_t bsendPayload[51];
+static void do_bsending() {
+  if (queueLength == 0) {
+    bSending = false;
+    return;
+  }
+  // try to send next message. If it fails, set a timer to recall this function
+  if (LORA_SUCCESS != LORA_send(&sendQueue[sendCursor], lora_config_reqack_get())) {
+    LOG_PRINTF(LL_DEBUG, "Failed to send frame, retrying in 1100ms\n");
+  } else {
+    LOG_PRINTF(LL_DEBUG, "Sent frame\n");
+    // if successful, move to next message in 1.1sec
+    sendCursor = (sendCursor + 1) % 256;
+    queueLength--;
+
+    if (queueLength == 0) {
+      bSending = false;
+      return;
+    }
+
+  }
+  
+  TimerInit(&BsendTimer, do_bsending);
+  TimerSetValue(&BsendTimer, 1100); // 1.1s to give time for firmware to process past the 1s send block
+  TimerStart(&BsendTimer);
+  return;
+}
 // buddy send; sends fragmented messages in accordance with Buddy spec
 static int at_bsend_func(int opt, int argc, char *argv[]){
   // for now, we only have I-frames, so first bit is always 0
@@ -1931,15 +1962,16 @@ static int at_bsend_func(int opt, int argc, char *argv[]){
   // iterate over 50-byte chunks
   
   uint8_t payload_size = 0;
+  uint8_t payload[51];
 
   for (int i = 2; i < strlen(argv[0]); i += 2) {
     // set header
     if (payload_size == 0) {
       // final?
-      if (strlen(argv[0]) - i < 1) {
-        bsendPayload[0] = 0b01000000;
+      if (strlen(argv[0]) - 2 - i < 50) {
+        payload[0] = 0b01000000;
       } else {
-        bsendPayload[0] = 0b00000000;
+        payload[0] = 0b00000000;
       }
       payload_size++;
     }
@@ -1948,28 +1980,31 @@ static int at_bsend_func(int opt, int argc, char *argv[]){
     hex[0] = argv[0][i];
     hex[1] = argv[0][i + 1];
     hex[2] = '\0';
-    bsendPayload[payload_size] = strtol(hex, NULL, 16);
+    payload[payload_size] = strtol(hex, NULL, 16);
 
     payload_size++;
 
-    // send if full
+    // add to queue if full
     if (payload_size == 51 || i == strlen(argv[0]) - 2) {
-      lora_AppData_t msg = { NULL, 0, 0 };
 
-      msg.Port = port;
-      msg.Buff = bsendPayload;
-      msg.BuffSize = payload_size;
+      sendQueue[sendCursor + queueLength].Port = port;
+      sendQueue[sendCursor + queueLength].Buff = payload;
+      sendQueue[sendCursor + queueLength].BuffSize = payload_size;
+
+      queueLength ++;
 
 
-      if (LORA_SUCCESS != LORA_send(&msg, lora_config_reqack_get())) {
-        LOG_PRINTF(LL_ERR, "Error sending message\n");
-        return LWAN_ERROR;
+      if (!bSending) {
+        bSending = true;
+        do_bsending();
       }
 
+      // TimerInit(&SendTimer, LORA_sene);
+      // TimerSetValue(&SendTimer, 1500 * frames);
+      // TimerStart(&SendTimer);
 
       // reset payload
       payload_size = 0;
-      LOG_PRINTF(LL_DEBUG, "Sent frame\n");
     }
   }
 
