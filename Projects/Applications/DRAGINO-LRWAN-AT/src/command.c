@@ -1895,12 +1895,18 @@ at_sendb_func(int opt, int argc, char *argv[])
 
 	return ret;
 }
+
+
+#define BSEND_QUEUE_SIZE 32
+#define MAX_MSG_SIZE 51
 // queue of messages to send
-static lora_AppData_t sendQueue[256];
+static lora_AppData_t sendQueue[BSEND_QUEUE_SIZE];
 static TimerEvent_t BsendTimer;
+static uint8_t payloadsBuffer[BSEND_QUEUE_SIZE][MAX_MSG_SIZE];
 static int sendCursor = 0;
 static int queueLength = 0;
 static bool bSending = false;
+
 
 static void do_bsending() {
   if (queueLength == 0) {
@@ -1913,7 +1919,7 @@ static void do_bsending() {
   } else {
     LOG_PRINTF(LL_DEBUG, "Sent frame\n");
     // if successful, move to next message in 1.1sec
-    sendCursor = (sendCursor + 1) % 256;
+    sendCursor = (sendCursor + 1) % BSEND_QUEUE_SIZE;
     queueLength--;
 
     if (queueLength == 0) {
@@ -1957,16 +1963,16 @@ static int at_bsend_func(int opt, int argc, char *argv[]){
   // iterate over 50-byte chunks
   
   uint8_t payload_size = 0;
-  uint8_t payload[51];
+
 
   for (int i = 2; i < strlen(argv[0]); i += 2) {
     // set header
     if (payload_size == 0) {
       // final?
-      if (strlen(argv[0]) - 2 - i < 50) {
-        payload[0] = 0b01000000;
+      if (strlen(argv[0]) - 2 - i < (MAX_MSG_SIZE - 1)) {
+        payloadsBuffer[sendCursor + queueLength][0] = 0b01000000;
       } else {
-        payload[0] = 0b00000000;
+        payloadsBuffer[sendCursor + queueLength][0] = 0b00000000;
       }
       payload_size++;
     }
@@ -1975,15 +1981,15 @@ static int at_bsend_func(int opt, int argc, char *argv[]){
     hex[0] = argv[0][i];
     hex[1] = argv[0][i + 1];
     hex[2] = '\0';
-    payload[payload_size] = strtol(hex, NULL, 16);
+    payloadsBuffer[sendCursor][payload_size] = strtol(hex, NULL, 16);
 
     payload_size++;
 
     // add to queue if full
-    if (payload_size == 51 || i == strlen(argv[0]) - 2) {
+    if (payload_size == MAX_MSG_SIZE || i == strlen(argv[0]) - 2) {
 
       sendQueue[sendCursor + queueLength].Port = port;
-      sendQueue[sendCursor + queueLength].Buff = payload;
+      sendQueue[sendCursor + queueLength].Buff = payloadsBuffer[sendCursor + queueLength];
       sendQueue[sendCursor + queueLength].BuffSize = payload_size;
 
       queueLength ++;
