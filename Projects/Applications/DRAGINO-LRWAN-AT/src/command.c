@@ -1875,11 +1875,6 @@ at_sendb_func(int opt, int argc, char *argv[])
         msg.Buff = sendbBuffer;
         msg.BuffSize = length;
 
-        // log the msg.Buff
-        for (int i = 0; i < msg.BuffSize; i++) {
-            LOG_PRINTF(LL_DEBUG, "msg.Buff[%d]: %u\n", i, msg.Buff[i]);
-        }
-
         if (LORA_SUCCESS != LORA_send(&msg, lora_config_reqack_get())) {
             ret = LWAN_ERROR;
         }
@@ -1998,7 +1993,7 @@ static int at_bsend_func(int opt, int argc, char *argv[]){
         bSending = true;
         do_bsending();
       }
-      
+
       // reset payload
       payload_size = 0;
     }
