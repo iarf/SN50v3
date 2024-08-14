@@ -150,6 +150,7 @@ static int at_class_func(int opt, int argc, char *argv[]);
 static int at_join_func(int opt, int argc, char *argv[]);
 static int at_njs_func(int opt, int argc, char *argv[]);
 static int at_sendb_func(int opt, int argc, char *argv[]);
+static int at_bsend_func(int opt, int argc, char *argv[]);
 static int at_send_func(int opt, int argc, char *argv[]);
 static int at_recv_func(int opt, int argc, char *argv[]);
 static int at_recvb_func(int opt, int argc, char *argv[]);
@@ -219,6 +220,7 @@ static at_cmd_t g_at_table[] = {
 		{AT_JOIN, at_join_func},
 		{AT_NJS, at_njs_func},
 	{AT_SENDB, at_sendb_func},
+  {AT_BSEND, at_bsend_func},
 	{AT_SEND, at_send_func},
 		{AT_RECVB,at_recvb_func},
 		{AT_RECV,at_recv_func},		
@@ -1873,6 +1875,11 @@ at_sendb_func(int opt, int argc, char *argv[])
         msg.Buff = sendbBuffer;
         msg.BuffSize = length;
 
+        // log the msg.Buff
+        for (int i = 0; i < msg.BuffSize; i++) {
+            LOG_PRINTF(LL_DEBUG, "msg.Buff[%d]: %u\n", i, msg.Buff[i]);
+        }
+
         if (LORA_SUCCESS != LORA_send(&msg, lora_config_reqack_get())) {
             ret = LWAN_ERROR;
         }
@@ -1894,6 +1901,80 @@ at_sendb_func(int opt, int argc, char *argv[])
 	return ret;
 }
 
+static uint8_t bsendPayload[51];
+// buddy send; sends fragmented messages in accordance with Buddy spec
+static int at_bsend_func(int opt, int argc, char *argv[]){
+  // for now, we only have I-frames, so first bit is always 0
+  // second bit is final and is 1 for the last frame, otherwise 0
+  // next 6 bits are 0
+  // next 50 bytes are the chunk of the payload
+
+
+	int ret = LWAN_PARAM_ERROR;
+  char *n;
+  unsigned int port;
+
+  if (argc < 1) {
+      return ret;
+  }
+
+  /*
+  * port 0 is special - use default application port
+  * port above 223 is disallowed
+  */
+  port = strtoul((const char *)argv[0], &n, 0);
+  if (*n++ != ':' || port > 223)  {
+      return ret;
+  }
+
+  // argv is the payload body -- max size is 50 bytes
+  // iterate over 50-byte chunks
+  
+  uint8_t payload_size = 0;
+
+  for (int i = 2; i < strlen(argv[0]); i += 2) {
+    // set header
+    if (payload_size == 0) {
+      // final?
+      if (strlen(argv[0]) - i < 1) {
+        bsendPayload[0] = 0b01000000;
+      } else {
+        bsendPayload[0] = 0b00000000;
+      }
+      payload_size++;
+    }
+    // set payload byte
+    char hex[3];
+    hex[0] = argv[0][i];
+    hex[1] = argv[0][i + 1];
+    hex[2] = '\0';
+    bsendPayload[payload_size] = strtol(hex, NULL, 16);
+
+    payload_size++;
+
+    // send if full
+    if (payload_size == 51 || i == strlen(argv[0]) - 2) {
+      lora_AppData_t msg = { NULL, 0, 0 };
+
+      msg.Port = port;
+      msg.Buff = bsendPayload;
+      msg.BuffSize = payload_size;
+
+
+      if (LORA_SUCCESS != LORA_send(&msg, lora_config_reqack_get())) {
+        LOG_PRINTF(LL_ERR, "Error sending message\n");
+        return LWAN_ERROR;
+      }
+
+
+      // reset payload
+      payload_size = 0;
+      LOG_PRINTF(LL_DEBUG, "Sent frame\n");
+    }
+  }
+
+  return LWAN_SUCCESS;
+}
 
 static int
 at_send_func(int opt, int argc, char *argv[])

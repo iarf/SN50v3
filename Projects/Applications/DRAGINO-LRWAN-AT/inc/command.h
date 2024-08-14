@@ -51,6 +51,7 @@
 #define AT_NJS        "+NJS"
 #define AT_SEND       "+SEND"
 #define AT_SENDB      "+SENDB"
+#define AT_BSEND      "+BSEND"
 #define AT_RECV       "+RECV"
 #define AT_RECVB      "+RECVB"
 #define AT_VER        "+VER"
