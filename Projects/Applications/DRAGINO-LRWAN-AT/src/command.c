@@ -1998,11 +1998,7 @@ static int at_bsend_func(int opt, int argc, char *argv[]){
         bSending = true;
         do_bsending();
       }
-
-      // TimerInit(&SendTimer, LORA_sene);
-      // TimerSetValue(&SendTimer, 1500 * frames);
-      // TimerStart(&SendTimer);
-
+      
       // reset payload
       payload_size = 0;
     }
