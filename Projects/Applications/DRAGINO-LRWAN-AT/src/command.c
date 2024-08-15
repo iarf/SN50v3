@@ -153,6 +153,7 @@ static int at_sendb_func(int opt, int argc, char *argv[]);
 static int at_send_func(int opt, int argc, char *argv[]);
 static int at_recv_func(int opt, int argc, char *argv[]);
 static int at_recvb_func(int opt, int argc, char *argv[]);
+static int at_buddy_func(int opt, int argc, char *argv[]);
 static int at_ver_func(int opt, int argc, char *argv[]);
 static int at_cfm_func(int opt, int argc, char *argv[]);
 static int at_snr_func(int opt, int argc, char *argv[]);
@@ -222,6 +223,7 @@ static at_cmd_t g_at_table[] = {
 	{AT_SEND, at_send_func},
 		{AT_RECVB,at_recvb_func},
 		{AT_RECV,at_recv_func},		
+    {AT_BUDDY, at_buddy_func},
 		{AT_VER, at_ver_func},
 		{AT_CFM, at_cfm_func},
 		{AT_SNR, at_snr_func},
@@ -1945,6 +1947,20 @@ at_send_func(int opt, int argc, char *argv[])
 	}
 
 	return ret;
+}
+
+static int at_buddy_func(int opt, int argc, char *argv[]) {
+  int ret = LWAN_PARAM_ERROR;
+
+  switch (opt) {
+    case QUERY_CMD:
+      ret = LWAN_SUCCESS;
+      snprintf((char *)atcmd, ATCMD_SIZE, "%s\r\n", "Hey buddy!");
+      break;
+    default:
+      break;
+  }
+  return ret;
 }
 
 static int at_ver_func(int opt, int argc, char *argv[])
