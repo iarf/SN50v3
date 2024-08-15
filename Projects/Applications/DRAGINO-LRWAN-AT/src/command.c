@@ -150,6 +150,7 @@ static int at_class_func(int opt, int argc, char *argv[]);
 static int at_join_func(int opt, int argc, char *argv[]);
 static int at_njs_func(int opt, int argc, char *argv[]);
 static int at_sendb_func(int opt, int argc, char *argv[]);
+static int at_bsend_func(int opt, int argc, char *argv[]);
 static int at_send_func(int opt, int argc, char *argv[]);
 static int at_recv_func(int opt, int argc, char *argv[]);
 static int at_recvb_func(int opt, int argc, char *argv[]);
@@ -220,6 +221,7 @@ static at_cmd_t g_at_table[] = {
 		{AT_JOIN, at_join_func},
 		{AT_NJS, at_njs_func},
 	{AT_SENDB, at_sendb_func},
+  {AT_BSEND, at_bsend_func},
 	{AT_SEND, at_send_func},
 		{AT_RECVB,at_recvb_func},
 		{AT_RECV,at_recv_func},		
@@ -1896,6 +1898,117 @@ at_sendb_func(int opt, int argc, char *argv[])
 	return ret;
 }
 
+
+#define BSEND_QUEUE_SIZE 32
+#define MAX_MSG_SIZE 51
+// queue of messages to send
+static lora_AppData_t sendQueue[BSEND_QUEUE_SIZE];
+static TimerEvent_t BsendTimer;
+static uint8_t payloadsBuffer[BSEND_QUEUE_SIZE][MAX_MSG_SIZE];
+static int sendCursor = 0;
+static int queueLength = 0;
+static bool bSending = false;
+
+
+static void do_bsending() {
+  if (queueLength == 0) {
+    bSending = false;
+    return;
+  }
+  // try to send next message. If it fails, set a timer to recall this function
+  if (LORA_SUCCESS != LORA_send(&sendQueue[sendCursor], lora_config_reqack_get())) {
+    LOG_PRINTF(LL_DEBUG, "Failed to send frame, retrying in 1100ms\n");
+  } else {
+    LOG_PRINTF(LL_DEBUG, "Sent frame\n");
+    // if successful, move to next message in 1.1sec
+    sendCursor = (sendCursor + 1) % BSEND_QUEUE_SIZE;
+    queueLength--;
+
+    if (queueLength == 0) {
+      bSending = false;
+      return;
+    }
+
+  }
+  
+  TimerInit(&BsendTimer, do_bsending);
+  TimerSetValue(&BsendTimer, 1100); // 1.1s to give time for firmware to process past the 1s send block
+  TimerStart(&BsendTimer);
+  return;
+}
+// buddy send; sends fragmented messages in accordance with Buddy spec
+static int at_bsend_func(int opt, int argc, char *argv[]){
+  // for now, we only have I-frames, so first bit is always 0
+  // second bit is final and is 1 for the last frame, otherwise 0
+  // next 6 bits are 0
+  // next 50 bytes are the chunk of the payload
+
+
+	int ret = LWAN_PARAM_ERROR;
+  char *n;
+  unsigned int port;
+
+  if (argc < 1) {
+      return ret;
+  }
+
+  /*
+  * port 0 is special - use default application port
+  * port above 223 is disallowed
+  */
+  port = strtoul((const char *)argv[0], &n, 0);
+  if (*n++ != ':' || port > 223)  {
+      return ret;
+  }
+
+  // argv is the payload body -- max size is 50 bytes
+  // iterate over 50-byte chunks
+  
+  uint8_t payload_size = 0;
+
+
+  for (int i = 2; i < strlen(argv[0]); i += 2) {
+    // set header
+    if (payload_size == 0) {
+      // final?
+      if (strlen(argv[0]) - 2 - i < (MAX_MSG_SIZE - 1)) {
+        payloadsBuffer[sendCursor + queueLength][0] = 0b01000000;
+      } else {
+        payloadsBuffer[sendCursor + queueLength][0] = 0b00000000;
+      }
+      payload_size++;
+    }
+    // set payload byte
+    char hex[3];
+    hex[0] = argv[0][i];
+    hex[1] = argv[0][i + 1];
+    hex[2] = '\0';
+    payloadsBuffer[sendCursor][payload_size] = strtol(hex, NULL, 16);
+
+    payload_size++;
+
+    // add to queue if full
+    if (payload_size == MAX_MSG_SIZE || i == strlen(argv[0]) - 2) {
+
+      sendQueue[sendCursor + queueLength].Port = port;
+      sendQueue[sendCursor + queueLength].Buff = payloadsBuffer[sendCursor + queueLength];
+      sendQueue[sendCursor + queueLength].BuffSize = payload_size;
+
+      queueLength ++;
+
+
+      if (!bSending) {
+        bSending = true;
+        do_bsending();
+      }
+
+      // reset payload
+      payload_size = 0;
+    }
+  }
+
+  return LWAN_SUCCESS;
+}
 
 static int
 at_send_func(int opt, int argc, char *argv[])
