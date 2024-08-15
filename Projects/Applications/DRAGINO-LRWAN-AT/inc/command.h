@@ -53,6 +53,7 @@
 #define AT_SENDB      "+SENDB"
 #define AT_RECV       "+RECV"
 #define AT_RECVB      "+RECVB"
+#define AT_BUDDY      "+BUDDY"
 #define AT_VER        "+VER"
 #define AT_CFM        "+CFM"
 #define AT_CFS        "+CFS"
