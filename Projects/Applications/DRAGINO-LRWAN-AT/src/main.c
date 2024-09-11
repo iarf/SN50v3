@@ -1556,25 +1556,16 @@ static void LORA_RxData( lora_AppData_t *AppData )
 	  AppData->Rssi, AppData->Snr);
 #endif
 	LOG_PRINTF(LL_DEBUG,"Receive data\r\n");
-	if((AppData->BuffSize<=8)&&(rxpr_flags==1))
-	{			
-		LOG_PRINTF(LL_DEBUG,"%d:",AppData->Port);
-		for (int i = 0; i < AppData->BuffSize; i++)
-		{
-			LOG_PRINTF(LL_DEBUG,"%02x ", AppData->Buff[i]);
-		}
-		LOG_PRINTF(LL_DEBUG,"\r\n");
-	}
-	else
-	{
-		// Stream output directly to serial when DL received (NG-60)
-		LOG_PRINTF(LL_DEBUG, "%d:", AppData->Port);
-		for (uint8_t i = 0; i < AppData->BuffSize; i++)
-		{
-			LOG_PRINTF(LL_DEBUG,"%02x ", AppData->Buff[i]);
-		}
-		LOG_PRINTF(LL_DEBUG,"\r\n");
-	}
+
+    // message format is `fr{[port]:[data]}`
+    LOG_PRINTF(LL_DEBUG, "fr{");
+    // Stream output directly to serial when DL received (NG-60)
+    LOG_PRINTF(LL_DEBUG, "%d:", AppData->Port);
+    for (uint8_t i = 0; i < AppData->BuffSize; i++)
+    {
+        LOG_PRINTF(LL_DEBUG,"%02x ", AppData->Buff[i]);
+    }
+    LOG_PRINTF(LL_DEBUG, "}\r\n");
 	
 	if((response_level!=0)&&(response_level!=3))
   {
