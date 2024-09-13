@@ -1966,8 +1966,12 @@ static int at_bsend_func(int opt, int argc, char *argv[]){
   
   uint8_t payload_size = 0;
 
-
-  for (int i = 2; i < strlen(argv[0]); i += 2) {
+  // get the inde of the colon
+  int colonIndex;
+  char *colon;
+  colon = strchr(argv[0], ':');
+  colonIndex = (int)(colon - argv[0]);
+  for (int i = colonIndex + 1; i < strlen(argv[0]); i += 2) {
     // set header
     if (payload_size == 0) {
       // final?
