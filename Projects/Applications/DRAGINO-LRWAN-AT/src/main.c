@@ -1563,7 +1563,7 @@ static void LORA_RxData( lora_AppData_t *AppData )
     LOG_PRINTF(LL_DEBUG, "%d:", AppData->Port);
     for (uint8_t i = 0; i < AppData->BuffSize; i++)
     {
-        LOG_PRINTF(LL_DEBUG,"%02x ", AppData->Buff[i]);
+        LOG_PRINTF(LL_DEBUG,"%02x", AppData->Buff[i]);
     }
     LOG_PRINTF(LL_DEBUG, "}\r\n");
 	
