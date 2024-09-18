@@ -1976,10 +1976,11 @@ static int at_bsend_func(int opt, int argc, char *argv[]){
     if (payload_size == 0) {
       // final?
       if (strlen(argv[0]) - 2 - i < (MAX_MSG_SIZE - 1)) {
-        payloadsBuffer[sendCursor + queueLength][0] = 0b01000000;
+        payloadsBuffer[sendCursor + queueLength][0] = 0b01000000 & sendCursor;
       } else {
-        payloadsBuffer[sendCursor + queueLength][0] = 0b00000000;
+        payloadsBuffer[sendCursor + queueLength][0] = 0b00000000 & sendCursor;
       }
+      // set the counter
       payload_size++;
     }
     // set payload byte
