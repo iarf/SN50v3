@@ -1906,6 +1906,7 @@ static lora_AppData_t sendQueue[BSEND_QUEUE_SIZE];
 static TimerEvent_t BsendTimer;
 static uint8_t payloadsBuffer[BSEND_QUEUE_SIZE][MAX_MSG_SIZE];
 static int sendCursor = 0;
+static int queueCursor = 0;
 static int queueLength = 0;
 static bool bSending = false;
 
@@ -1969,35 +1970,44 @@ static int at_bsend_func(int opt, int argc, char *argv[]){
   // get the inde of the colon
   int colonIndex;
   char *colon;
+  uint8_t frameCounter = 0;
   colon = strchr(argv[0], ':');
   colonIndex = (int)(colon - argv[0]);
   for (int i = colonIndex + 1; i < strlen(argv[0]); i += 2) {
     // set header
     if (payload_size == 0) {
       // final?
-      if (strlen(argv[0]) - 2 - i < (MAX_MSG_SIZE - 1)) {
-        payloadsBuffer[sendCursor + queueLength][0] = 0b01000000;
+      if (strlen(argv[0]) - 2 - i < (2 * (MAX_MSG_SIZE - 1))) {
+        uint8_t firstByte = 0b01000000 | frameCounter;
+        payloadsBuffer[queueCursor][0] = firstByte;
       } else {
-        payloadsBuffer[sendCursor + queueLength][0] = 0b00000000;
+        uint8_t firstByte = 0b00000000 | frameCounter;
+        payloadsBuffer[queueCursor][0] = firstByte;
       }
+      // set the counter
       payload_size++;
+      frameCounter++;
     }
     // set payload byte
     char hex[3];
     hex[0] = argv[0][i];
     hex[1] = argv[0][i + 1];
     hex[2] = '\0';
-    payloadsBuffer[sendCursor][payload_size] = strtol(hex, NULL, 16);
+    payloadsBuffer[queueCursor][payload_size] = strtol(hex, NULL, 16);
 
     payload_size++;
 
     // add to queue if full
     if (payload_size == MAX_MSG_SIZE || i == strlen(argv[0]) - 2) {
 
-      sendQueue[sendCursor + queueLength].Port = port;
-      sendQueue[sendCursor + queueLength].Buff = payloadsBuffer[sendCursor + queueLength];
-      sendQueue[sendCursor + queueLength].BuffSize = payload_size;
-
+      sendQueue[queueCursor].Port = port;
+      sendQueue[queueCursor].Buff = payloadsBuffer[queueCursor];
+      sendQueue[queueCursor].BuffSize = payload_size;
+      // log buff as hex
+      for (int i = 0; i < payload_size; i++) {
+        LOG_PRINTF(LL_DEBUG, "%02x ", payloadsBuffer[queueCursor][i]);
+      }
+      queueCursor = (queueCursor + 1) % BSEND_QUEUE_SIZE;
       queueLength ++;
 
 
