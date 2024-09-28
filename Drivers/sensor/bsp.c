@@ -52,7 +52,7 @@ void BLE_power_Init(void)
 	 LOG_PRINTF(LL_DEBUG,"AT+NAME%02X%02X%02X%02X%02X%02X%02X%02X\r\n", 
 	   buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6], buf[7]);
 #else
-	 LOG_PRINTF(LL_DEBUG,"AT+NAMEOfer-buddy-%02X%02X%02X\r\n", 
+	 LOG_PRINTF(LL_DEBUG,"AT+NAMELars-buddy-%02X%02X%02X\r\n", 
 	   buf[5], buf[6], buf[7]);
 #endif
 

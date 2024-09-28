@@ -1782,7 +1782,8 @@ void OnCheckBLETimesEvent(void)
     else
     {
         TimerStop( &CheckBLETimesTimer);	
-        ble_sleep_command=1;
+        // XXX: never turn off BLE for timeout
+	// ble_sleep_command=1;
     }		
 }
 

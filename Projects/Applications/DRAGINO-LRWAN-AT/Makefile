@@ -45,7 +45,7 @@ $(PROJECT)_LIBS := $(TREMO_SDK_PATH)/Drivers/crypto/lib/libcrypto.a
 $(PROJECT)_LINK_LD := cfg/gcc.ld
 
 # please change the settings to download the app
-SERIAL_PORT        :=/dev/ttyUSB0
+SERIAL_PORT        :=/dev/ttyS9
 #SERIAL_PORT        :=
 #SERIAL_BAUDRATE    := 115200
 #$(PROJECT)_ADDRESS :=
