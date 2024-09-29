@@ -1921,7 +1921,13 @@ static void do_bsending() {
     // if successful, move to next message in 1.1sec
     sendCursor = (sendCursor + 1) % BSEND_QUEUE_SIZE;
     queueLength--;
+    // log that we sent a message
     LOG_PRINTF(LL_DEBUG, "sn{%d,%d}\r\n", sendCursor, queueLength);
+    // log the changed UL fcnt
+    MibRequestConfirm_t mib;
+    mib.Type = MIB_UPLINK_COUNTER;
+    LoRaMacMibGetRequestConfirm(&mib);
+    LOG_PRINTF(LL_DEBUG, "fcu{%d}\r\n", mib.Param.UpLinkCounter);				
 
     if (queueLength == 0) {
       bSending = false;
