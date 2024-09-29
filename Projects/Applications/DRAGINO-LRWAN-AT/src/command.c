@@ -1549,7 +1549,7 @@ static int at_fcu_func(int opt, int argc, char *argv[])
 						mib.Type = MIB_UPLINK_COUNTER;
 					  LoRaMacMibGetRequestConfirm(&mib);											
 					 
-            snprintf((char *)atcmd, ATCMD_SIZE, "%u\r\n", (unsigned int)mib.Param.UpLinkCounter);
+            snprintf((char *)atcmd, ATCMD_SIZE, "FCU{%u}\r\n", (unsigned int)mib.Param.UpLinkCounter);
 
 					 break;
         }
@@ -1609,7 +1609,7 @@ static int at_fcd_func(int opt, int argc, char *argv[])
 						mib.Type = MIB_DOWNLINK_COUNTER;
 					  LoRaMacMibGetRequestConfirm(&mib);											
 					 
-            snprintf((char *)atcmd, ATCMD_SIZE, "%u\r\n", (unsigned int)mib.Param.DownLinkCounter);
+            snprintf((char *)atcmd, ATCMD_SIZE, "FCD{%u}\r\n", (unsigned int)mib.Param.DownLinkCounter);
 
 					 break;
         }
@@ -1917,13 +1917,11 @@ static void do_bsending() {
     return;
   }
   // try to send next message. If it fails, set a timer to recall this function
-  if (LORA_SUCCESS != LORA_send(&sendQueue[sendCursor], lora_config_reqack_get())) {
-    LOG_PRINTF(LL_DEBUG, "Failed to send frame, retrying in 1100ms\n");
-  } else {
-    LOG_PRINTF(LL_DEBUG, "Sent frame\n");
+  if (LORA_SUCCESS == LORA_send(&sendQueue[sendCursor], lora_config_reqack_get())) {
     // if successful, move to next message in 1.1sec
     sendCursor = (sendCursor + 1) % BSEND_QUEUE_SIZE;
     queueLength--;
+    LOG_PRINTF(LL_DEBUG, "sn{%d,%d}\r\n", sendCursor, queueLength);
 
     if (queueLength == 0) {
       bSending = false;
@@ -2003,10 +2001,6 @@ static int at_bsend_func(int opt, int argc, char *argv[]){
       sendQueue[queueCursor].Port = port;
       sendQueue[queueCursor].Buff = payloadsBuffer[queueCursor];
       sendQueue[queueCursor].BuffSize = payload_size;
-      // log buff as hex
-      for (int i = 0; i < payload_size; i++) {
-        LOG_PRINTF(LL_DEBUG, "%02x ", payloadsBuffer[queueCursor][i]);
-      }
       queueCursor = (queueCursor + 1) % BSEND_QUEUE_SIZE;
       queueLength ++;
 
