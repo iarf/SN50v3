@@ -1560,7 +1560,7 @@ static void LORA_RxData( lora_AppData_t *AppData )
     MibRequestConfirm_t mib;
     mib.Type = MIB_DOWNLINK_COUNTER;
     LoRaMacMibGetRequestConfirm(&mib);
-    LOG_PRINTF(LL_DEBUG, "fcu{%d}\r\n", mib.Param.DownLinkCounter);	
+    LOG_PRINTF(LL_DEBUG, "fcd{%u}\r\n", (unsigned int)mib.Param.DownLinkCounter);	
 #endif
     // message format is `fr{[port]:[data]}`
     LOG_PRINTF(LL_DEBUG, "fr{");

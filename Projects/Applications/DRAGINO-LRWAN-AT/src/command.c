@@ -1927,7 +1927,7 @@ static void do_bsending() {
     MibRequestConfirm_t mib;
     mib.Type = MIB_UPLINK_COUNTER;
     LoRaMacMibGetRequestConfirm(&mib);
-    LOG_PRINTF(LL_DEBUG, "fcu{%d}\r\n", mib.Param.UpLinkCounter);				
+    LOG_PRINTF(LL_DEBUG, "fcu{%u}\r\n", (unsigned int)mib.Param.UpLinkCounter);				
 
     if (queueLength == 0) {
       bSending = false;
