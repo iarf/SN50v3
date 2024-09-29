@@ -947,6 +947,8 @@ static void OnRadioRxDone( uint8_t *payload, uint16_t size, int16_t rssi, int8_t
                 sequenceCounter = ( uint16_t )payload[pktHeaderLen++];
                 sequenceCounter |= ( uint16_t )payload[pktHeaderLen++] << 8;
 
+                LOG_PRINTF(LL_DEBUG, "fcd{%u}\n\r", sequenceCounter);
+
                 appPayloadStartIndex = 8 + fCtrl.Bits.FOptsLen;
 
                 micRx |= ( uint32_t )payload[size - LORAMAC_MFR_LEN];
@@ -1190,6 +1192,7 @@ static void OnRadioRxDone( uint8_t *payload, uint16_t size, int16_t rssi, int8_t
 				    address_flags=1;
             break;
     }
+
 		    // Verify if we need to disable the AckTimeoutTimer
     CheckToDisableAckTimeout( NodeAckRequested, LoRaMacDeviceClass, McpsConfirm.AckReceived,
                                 AckTimeoutRetriesCounter, AckTimeoutRetries );

@@ -1554,13 +1554,6 @@ static void LORA_RxData( lora_AppData_t *AppData )
 #if 1
 	LOG_PRINTF(LL_DEBUG,"rxsi{:%d,%u}\r\n",
 	  AppData->Rssi, AppData->Snr);
-    // log the updated DL fCnt
-    
-    // log the changed UL fcnt
-    MibRequestConfirm_t mib;
-    mib.Type = MIB_DOWNLINK_COUNTER;
-    LoRaMacMibGetRequestConfirm(&mib);
-    LOG_PRINTF(LL_DEBUG, "fcd{%u}\r\n", (unsigned int)mib.Param.DownLinkCounter);	
 #endif
     // message format is `fr{[port]:[data]}`
     LOG_PRINTF(LL_DEBUG, "fr{");
